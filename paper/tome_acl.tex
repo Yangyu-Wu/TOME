@@ -1,0 +1,272 @@
+\documentclass[11pt]{article}
+\usepackage[review]{acl}
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\usepackage{inconsolata}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+
+\title{TOME: Temporal Opponent Modeling and Outcome-Conditioned Episodic Memory\\
+for Adaptive Tactical Agents in Real-Time Strategy Games}
+\author{Anonymous ACL submission}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Real-time strategy (RTS) agents must react to opponents whose tactics change over
+a match while acting under strict latency and action-validity constraints.
+Existing policies often condition on the current state or optimize against fixed
+opponents, making early response to tactical shifts difficult. We propose TOME,
+a hierarchical agent that models an opponent from a temporal sequence of game
+events, retrieves outcome-conditioned episodic memories from similar prior
+games, and uses a low-frequency tactical planner with a constraint-aware action
+executor. TOME separates language-model or rule-based deliberation from
+tick-level control: the planner selects a discrete tactic and the executor maps
+it to permitted actions. This paper presents the method, a pre-registered
+MicroRTS evaluation protocol, and explicitly marked pilot measurements. The
+pilot results establish the experimental pipeline but do not support a final
+performance claim.
+\end{abstract}
+
+\section{Introduction}
+
+RTS games require agents to allocate resources, build units, and fight an
+adaptive adversary in real time. Large-scale learning has mastered complex
+strategic domains \citep{vinyals2019grandmaster,berner2019dota}. However, a
+policy trained against a limited opponent distribution can respond poorly when
+an opponent changes from economic expansion to an early rush. The useful
+evidence is not a single board state, but a sequence of unit production,
+movement trends, resource choices, and distances between forces.
+
+Language-model agents make high-level reasoning and tool use practical
+\citep{yao2023react,wang2023voyager}, while memory can help agents reuse
+experience across tasks \citep{park2023generative,shinn2023reflexion}. Directly
+asking an API model to issue unit-level actions is unsuitable for RTS games: it
+would be called too frequently, can return invalid actions, and makes latency
+and cost part of the control loop. A usable game agent needs a clear boundary
+between deliberation and real-time execution.
+
+We study tactical adaptation in MicroRTS \citep{ontanon2013microrts}, using
+the \texttt{gym-microrts} interface \citep{huang2021gymmicrorts}. We ask whether
+an agent can predict near-future tactical pressure from behavior time series,
+retrieve useful prior episodes, and translate a selected tactic into legal
+actions quickly enough to affect a match.
+
+\section{Problem Formulation}
+
+At tick $t$, the environment provides observation $o_t$ and legal action mask
+$m_t$. TOME controls one player against an opponent with latent tactical mode
+$z_t \in \{\textit{economic}, \textit{balanced}, \textit{advance},
+\textit{rush}\}$. Every $K$ ticks, it selects a high-level tactic $a^H_t$ from
+$\{\textit{economy},\textit{scout},\textit{defend},\textit{rush}\}$. At every
+tick, its executor emits a legal low-level action $a^L_t \in \mathcal{A}(m_t)$.
+The objective is
+\[
+\max_{\pi} \; \mathbb{E}[R] - \lambda\mathbb{E}[D_{\mathrm{switch}}],
+\]
+where $D_{\mathrm{switch}}$ is the delay between an opponent tactical change
+and a compatible response. The central challenges are temporal prediction,
+selective reuse of delayed-outcome experience, and hard action constraints.
+
+\section{TOME}
+
+\subsection{Temporal Opponent Dynamics Model (TODM)}
+
+TODM converts the recent $W$ observations into an event sequence
+$e_{t-W+1:t}$. An event includes own and enemy unit counts by type, worker and
+combat-unit growth, resource and building changes, centroid distance, and
+movement trend. A temporal encoder predicts a future mode and attack pressure:
+\[
+(\hat z_{t+H},\hat p_{t+H})=f_\theta(e_{t-W+1:t}).
+\]
+The current implementation is an interpretable temporal rule model. The final
+evaluation will compare it with a single-frame classifier, window statistics,
+GRU, TCN, and Transformer models. In particular, worker growth together with
+approach toward the agent base is treated as a possible WorkerRush signal,
+rather than economic behavior alone.
+
+\subsection{Outcome-Conditioned Episodic Memory (OCEM)}
+
+After episode $j$, OCEM stores
+\[
+q_j=(\phi_j,\hat z_j,a^H_j,r_j,y_j),
+\]
+where $\phi_j$ is a state signature, $r_j$ is return, and $y_j \in\{-1,0,1\}$
+is the terminal result. At planning time, it retrieves episodes that match the
+state signature and predicted opponent mode, ranking them by similarity and
+positive outcome. The retrieved tactic is evidence, not an unconditional
+command; failed episodes are not treated as positive demonstrations.
+
+\subsection{Constraint-aware Tactical Planner and Executor (CTPE)}
+
+The planner receives a compact structured state summary, a TODM prediction, and
+memory evidence. It outputs one token from the tactic vocabulary. It can be a
+deterministic rule policy or an API language model, but runs only every $K$
+ticks. CTPE runs every tick: it maps a tactic to unit priorities, queries the
+MicroRTS action mask, and selects only permitted action types and parameters.
+Thus, an API model never directly controls the game loop.
+
+\begin{figure}[t]
+\centering
+\fbox{\begin{minipage}{0.90\columnwidth}\centering
+State sequence $\rightarrow$ TODM $\rightarrow$ OCEM $\rightarrow$ planner
+$\rightarrow$ CTPE legal actions $\rightarrow$ outcome $\rightarrow$ memory
+\end{minipage}}
+\caption{TOME decision loop. The planner runs every $K$ ticks; CTPE runs at
+every tick using the action mask.}
+\label{fig:tome}
+\end{figure}
+
+\section{Research Questions and Expected Contributions}
+
+\paragraph{RQ1: Temporal prediction.} Does temporal opponent modeling improve
+early tactical-shift detection and downstream performance over single-frame
+state conditioning? We will measure future-mode macro-F1, pressure MAE, and
+response delay.
+
+\paragraph{RQ2: Outcome-conditioned memory.} Does retrieving successful
+episodes from similar states improve adaptation to unseen opponent mixtures or
+strategy switches? We will measure win rate, normalized return, tactic-switch
+success, and sample efficiency against no-memory and recency-memory controls.
+
+\paragraph{RQ3: Hierarchical constrained execution.} Does separating
+low-rate planning from mask-constrained control preserve real-time feasibility
+while improving adaptation? We will measure action validity, latency, API calls,
+cost, and performance against a per-tick planning control.
+
+This paper makes three intended contributions: (1) TOME, an RTS agent combining
+temporal opponent prediction, outcome-conditioned memory, and constrained
+hierarchical execution; (2) an evaluation protocol that jointly measures
+prediction, adaptation, action validity, and runtime cost; and (3) systematic
+ablations that isolate TODM, OCEM, CTPE, and language-model planning.
+
+\section{Experimental Design}
+
+\subsection{Environment and Opponents}
+
+We will use standard 10$\times$10 MicroRTS base-and-worker maps. The opponent
+suite will include RandomAI, WorkerRush, LightRush, MCTS, Minimax/ABCD where
+available, single-agent RL, and multi-agent RL policies. We will evaluate both
+stationary opponents and scripted within-episode tactic switches. The final
+paper will report exact versions, maps, seeds, training budgets, and hardware.
+
+\subsection{Baselines and Ablations}
+
+All methods receive identical observations and action masks. Comparisons are a
+fixed tactic, a state-only planner, TOME without TODM, TOME with ordinary
+recency memory, TOME without CTPE, and full TOME. Rule and API planners use the
+same tactic vocabulary and decision interval. We will run at least three
+independent runs with matched seeds and confidence intervals.
+
+\begin{table*}[t]
+\centering
+\small
+\caption{Updated RTS evaluation on the two-worker 10x10 map: three episodes per
+opponent (18 games per method), with a 500-tick horizon and 25-tick decision
+interval. These are diagnostic results from the optimized unit-aware executor,
+not a powered final comparison.}
+\label{tab:main}
+\begin{tabular}{lccccccc}
+\toprule
+Method & PassiveAI & RandomAI & WorkerRush & LightRush & Coac & NaiveMCTS & Overall \\
+\midrule
+Fixed economy & 0/3 & 0/3 & 0/3 & 0/3 & 0/3 & 0/3 & 0/18 \\
+Fixed defend & 0/3 & 0/3 & 0/3 & 0/3 & 0/3 & 0/3 & 0/18 \\
+Fixed rush & 3/3 & 2/3 & 0/3 & 0/3 & 0/3 & 0/3 & 5/18 \\
+TOME w/o TODM & 3/3 & 1/3 & 0/3 & 0/3 & 0/3 & 0/3 & 4/18 \\
+TOME (rule planner) & 3/3 & 1/3 & 0/3 & 0/3 & 2/3 & 0/3 & 6/18 \\
+TOME (learned TODM) & 3/3 & 3/3 & 0/3 & 0/3 & 0/3 & 0/3 & 6/18 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table}[t]
+\centering
+\small
+\caption{Initial RQ1 results on 535 held-out trajectory windows. Response delay
+is non-negative delay for detecting a labeled rush, in ticks.}
+\label{tab:rq1}
+\begin{tabular}{lccc}
+\toprule
+Model & Mode macro-F1 & Pressure MAE & Response delay \\
+\midrule
+Single frame & 0.377 & 0.049 & 22.2 \\
+Window statistics & 0.515 & 0.050 & 26.7 \\
+Temporal sequence (linear) & 0.358 & 0.047 & 111.1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering
+\small
+\caption{API feasibility pilot on one 100-tick RandomAI episode per row.
+Provider pricing was not returned, so cost is not reported.}
+\label{tab:efficiency}
+\begin{tabular}{lccc}
+\toprule
+Planner & Latency (ms) & API calls/episode & Cost/episode \\
+\midrule
+Rule & 0.01 & 0 & -- \\
+API, $K=25$ & 1080.98 & 4 & -- \\
+API, $K=50$ & 1257.50 & 2 & -- \\
+API, $K=100$ & 1230.39 & 1 & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Pilot Results and Current Implementation Status}
+
+Table~\ref{tab:main} verifies that the optimized, mask-constrained CTPE has zero
+invalid requests in the current 90-game diagnostic suite. TOME's rule planner
+wins 6/18 games (33.3\%), compared with 4/18 (22.2\%) without TODM and 5/18
+(27.8\%) for a fixed rush policy. The gain is concentrated on PassiveAI and
+Coac; all methods still fail against WorkerRush and LightRush. This remains a
+prediction-to-control gap, not evidence that the current temporal predictor is
+solved.
+This negative result identifies the hand-written prediction-to-tactic mapping,
+rather than the action-validity layer, as the immediate research bottleneck.
+In Table~\ref{tab:rq1}, window statistics had the strongest held-out macro-F1
+(0.515), but no temporal baseline reduced rush detection delay. This motivates
+learned temporal encoders and controlled switch data rather than a claim that
+sequence modeling is already solved.
+
+The current prototype implements a game-event decoder, a rule-based TODM,
+persistent outcome-conditioned memory, a four-tactic planning interface, and a
+unit-aware mask-constrained executor that maps Base, Barracks, Worker, and
+combat-unit actions separately. It has been evaluated on all six built-in
+opponents using the two-worker 10x10 map. The API feasibility condition makes
+one high-level request per decision interval, with CTPE maintaining legal
+tick-level control.
+The current learned models are NumPy temporal feature baselines. Deep temporal
+encoders, RL and MARL opponents, controlled within-episode opponent switches,
+and a properly powered final evaluation remain pending.
+
+\section{Limitations and ACL Relevance}
+
+MicroRTS is a simplified RTS environment, so transfer to commercial games is
+not guaranteed. Outcome-conditioned memory may amplify biased early experience.
+The API condition requires model version, prompt, timeout, failure rate, cost,
+and reproducibility reporting. For ACL relevance, language is treated as a
+substantive experimental variable: structured event serialization, retrieved
+evidence, and constrained tactic generation are explicit planner inputs and
+outputs. This comparison should remain in the final paper only if it yields a
+clear language-related finding beyond the game-engineering contribution.
+
+\section{Conclusion}
+
+TOME frames RTS tactical adaptation as temporal opponent modeling, selective
+reuse of outcome-conditioned experience, and constrained hierarchical control.
+The current draft fixes the problem statement, method, research questions, and
+evaluation protocol, and reports a reproducible diagnostic suite. The next
+milestone is a powered multi-seed evaluation plus learned temporal encoders and
+explicit within-episode opponent switches.
+
+\bibliographystyle{acl_natbib}
+\bibliography{custom,anthology}
+\end{document}

@@ -1,0 +1,29 @@
+.env
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+
+# Local runtime output and downloaded environments
+logs/
+**/logs/
+game_ai_lab/minecraft/server/
+game_ai_lab/minecraft/node_modules/
+tools/jdk-21/
+tools/*.zip
+tools/*.exe
+tools/*.tmp
+versions/
+libraries/
+literature/pdfs/
+
+# Generated data and large binary dependencies
+*.log
+*.jar
+*.zip
+*.exe
+*.mca
+*.dat
+*.dat_old
+session.lock

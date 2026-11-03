@@ -1,0 +1,32 @@
+category,title,filename,url,source_note
+agent_memory,Generative Agents Interactive Simulacra of Human Behavior,generative_agents_2023.pdf,https://arxiv.org/pdf/2304.03442,UIST 2023
+agent_memory,Evaluating Very Long-Term Conversational Memory of LLM Agents,locomo_acl2024.pdf,https://aclanthology.org/2024.acl-long.747.pdf,ACL 2024
+agent_memory,Voyager An Open-Ended Embodied Agent with Large Language Models,voyager_2023.pdf,https://arxiv.org/pdf/2305.16291,arXiv
+agent_memory,MemBench Towards More Comprehensive Evaluation on the Memory of LLM-based Agents,membench_acl2025.pdf,https://aclanthology.org/2025.findings-acl.989.pdf,Findings ACL 2025
+agent_memory,Memory OS of AI Agent,memory_os_emnlp2025.pdf,https://aclanthology.org/2025.emnlp-main.1318.pdf,EMNLP 2025
+agent_memory,Agentic Memory Learning Unified Long-Term and Short-Term Memory Management,agemem_2026.pdf,https://arxiv.org/pdf/2601.01885,arXiv 2026
+agent_memory,From Recall to Forgetting Benchmarking Long-Term Memory for Personalized Agents,memora_acl2026.pdf,https://aclanthology.org/2026.findings-acl.1337.pdf,Findings ACL 2026
+game_agent,SmartPlay A Benchmark for LLMs as Intelligent Agents,smartplay_iclr2024.pdf,https://arxiv.org/pdf/2310.01557,ICLR 2024
+game_agent,Odyssey Empowering Minecraft Agents with Open-World Skills,odyssey_ijcai2025.pdf,https://www.ijcai.org/proceedings/2025/0022.pdf,IJCAI 2025
+game_agent,LLM-Guided Reinforcement Learning for Adaptive NPC Behavior,adaptive_npc_llm_rl_2026.pdf,https://arxiv.org/pdf/2609.02931,arXiv 2026
+game_agent,WorldMind Decoupled Game World Model for State-Aware NPC Behavior,worldmind_2026.pdf,https://arxiv.org/pdf/2608.21439,arXiv 2026
+game_agent,Goal-Oriented Interactions in Games Using LLMs,goal_oriented_games_ieee2025.pdf,https://ieeexplore.ieee.org/document/10791807,IEEE page; PDF may require access
+player_modeling,player2vec A Language Modeling Approach to Understand Player Behavior in Games,player2vec_2024.pdf,https://arxiv.org/pdf/2404.04234,arXiv
+player_modeling,Modeling Individual Differences in Game Behavior Using HMM,player_hmm_aiide2017.pdf,https://ojs.aaai.org/index.php/AIIDE/article/download/12942/12793,AIIDE
+player_modeling,High-Fidelity Simulated Players for Interactive Narrative Planning,simulated_players_ijcai2018.pdf,https://www.ijcai.org/proceedings/2018/0540.pdf,IJCAI 2018
+game_agent,GameTraversalBenchmark Evaluating Planning Abilities of LLMs Through 2D Game Maps,gametraversal_neurips2024.pdf,https://proceedings.neurips.cc/paper_files/paper/2024/file/3852c8254bc6d904c09db9921157f59b-Paper-Datasets_and_Benchmarks_Track.pdf,NeurIPS 2024
+anti_entropy_3d,Wonder3D Single Image to 3D using Cross-Domain Diffusion,wonder3d_cvpr2024.pdf,https://arxiv.org/pdf/2310.15008,公开关联作者 Cheng Lin
+anti_entropy_3d,SyncDreamer Generating Multiview-consistent Images from a Single-view Image,syncdreamer_iclr2024.pdf,https://arxiv.org/pdf/2309.03453,公开关联作者 Cheng Lin
+anti_entropy_3d,Era3D High-Resolution Multiview Diffusion using Efficient Row-wise Attention,era3d_neurips2024.pdf,https://arxiv.org/pdf/2405.11616,公开关联作者 Cheng Lin
+anti_entropy_3d,DreamMat High-quality PBR Material Generation with Geometry- and Light-aware Diffusion Models,dreammat_siggraph2024.pdf,https://arxiv.org/pdf/2405.17176,公开关联作者 Cheng Lin
+anti_entropy_3d,CADDreamer CAD Object Generation from Single-view Images,caddreamer_cvpr2025.pdf,https://arxiv.org/pdf/2502.20732,公开关联作者 Cheng Lin
+anti_entropy_3d,Part123 Part-aware 3D Reconstruction from a Single-view Image,part123_siggraph2024.pdf,https://arxiv.org/pdf/2405.16888,公开关联作者 Cheng Lin
+anti_entropy_3d,NeuralUDF Learning Unsigned Distance Fields for Multi-view Reconstruction,neuraludf_cvpr2023.pdf,https://arxiv.org/pdf/2109.09918,公开关联作者 Cheng Lin
+anti_entropy_3d,Point2Skeleton Learning Skeletal Representations from Point Clouds,point2skeleton_cvpr2021.pdf,https://arxiv.org/pdf/2012.03437,公开关联作者 Cheng Lin
+anti_entropy_3d,NeRO Neural Radiance Fields for Reflective Objects,nero_siggraph2023.pdf,https://arxiv.org/pdf/2305.17386,公开关联作者 Cheng Lin
+anti_entropy_3d,MAGE Single Image to Material-Aware 3D via Multi-View G-Buffer Estimation,mage_cvpr2025.pdf,https://arxiv.org/pdf/2412.10767,公开关联作者 Cheng Lin
+game_npc,MemoryRepository for AI NPC,memoryrepository_ai_npc_2024.pdf,https://ieeexplore.ieee.org/document/10516498,IEEE Access; PDF may require access
+game_npc,Personalized Non-Player Characters A Framework for Character-Consistent Dialogue Generation,personalized_npc_2025.pdf,https://www.mdpi.com/2673-2688/6/5/93/pdf,AI 2025
+game_npc,Who What When Where Why Narrative Episodic Memory Framework for Generative AI NPCs,narrative_memory_npc_2025.pdf,https://ace.ewapub.com/article/view/21096/19896,2025
+game_npc,LLM-Driven NPCs Cross-Platform Dialogue System for Games and Social Platforms,llm_npc_cross_platform_2025.pdf,https://arxiv.org/pdf/2504.13928,arXiv 2025
+survey,A Survey on Large Language Model-Based Game Agents,llm_game_agents_survey_2024.pdf,https://arxiv.org/pdf/2404.02039,arXiv survey

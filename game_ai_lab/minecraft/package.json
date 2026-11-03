@@ -1,0 +1,14 @@
+{
+  "name": "game-ai-minecraft-npc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bot": "node bot.mjs"
+  },
+  "dependencies": {
+    "canvas": "^3.2.3",
+    "mineflayer": "^4.39.0",
+    "mineflayer-pathfinder": "^2.4.5",
+    "prismarine-viewer": "^1.33.0"
+  }
+}
