@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><canvas id="gpu"></canvas><pre id="result">running</pre>
+<script type="module">
+import {GpuHeroLayer} from '../src/web/gpu-hero-layer.js';
+try{
+ const layer=new GpuHeroLayer(document.querySelector('canvas'));await layer.load('../src/assets/heroes/animations/quaternius-ual2/ual2-standard.glb','../src/assets/heroes/models/quaternius-base-male/Superhero_Male_FullBody.gltf');layer.clock.getDelta=()=>1/60;
+ const base={heroId:'machao',role:'cavalry',x:320,y:360,moving:false,speed:78,facing:1,walkPhase:1},moving={...base,id:'moving'},standing={...base,id:'standing',x:620};layer.render([moving,standing]);
+ const attack={...moving,moving:true,attackFlash:.1,walkPhase:2.2},reference={...standing,attackFlash:.1};
+ for(let i=0;i<12;i++)layer.render([attack,reference]);
+ const actor=layer.actors.get('moving'),still=layer.actors.get('standing'),bones=actor.runBones;
+ const checks={attackState:actor.lastState==='attack',movingWasPreserved:actor.wasMoving===true,usesAuthoredJog:actor.lowerBodyClip==='Jog_Fwd_Loop',lowerBodyBlendsIn:actor.lowerBodyWeight>.85,legsDifferFromStationaryAttack:bones.thighL.quaternion.angleTo(still.runBones.thighL.quaternion)>.02,upperBodyAttackPreserved:bones.upperR.quaternion.angleTo(still.runBones.upperR.quaternion)<1e-6&&bones.spine.quaternion.angleTo(still.runBones.spine.quaternion)<1e-6,noProceduralGait:bones.thighL.userData.runMotionApplied===undefined};
+ const phase=actor.lowerLocomotionPhase;layer.render([attack,reference]);checks.stridePhaseAdvances=actor.lowerLocomotionPhase!==phase;
+ const weight=actor.lowerBodyWeight;layer.render([{...attack,moving:false},reference]);checks.stoppingFadesLegLayer=actor.lowerBodyWeight>0&&actor.lowerBodyWeight<weight;
+ layer.render([{...attack,attackFlash:0,hitFlash:.1},reference]);checks.hitState=actor.lastState==='hit';checks.hitBlendIsShort=actor.lastBlendDuration===.07;checks.hitOwnsWholeBody=actor.lowerBodyWeight===0;
+ layer.render([{...attack,dead:true,deathAge:.2},reference]);checks.deathOwnsWholeBody=actor.lastState==='death'&&actor.lowerBodyWeight===0;
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks});layer.dispose();
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

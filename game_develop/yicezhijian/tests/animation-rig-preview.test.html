@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><canvas id="rig" width="640" height="480"></canvas><pre id="result">running</pre>
+<script type="module">
+import {RigPreview} from '../src/web/rig-preview.js';
+try{
+ const preview=new RigPreview(document.querySelector('#rig'));
+ const details=await preview.load('../src/assets/heroes/animations/quaternius-ual2/ual2-standard.glb');
+ const states=['idle','walk','attack','attackRecovery','hit'];
+ const stateResults=states.map(state=>({state,played:preview.playState(state),clip:preview.currentAction?.getClip()?.name||null}));
+ preview.playState('attack');for(let i=0;i<8;i++)preview.render();const start=performance.now();for(let i=0;i<12;i++)preview.render();const renderMs=performance.now()-start;
+ const checks={singleSkinnedSource:details.meshes>0,clonesForFormation:details.actors===9,webglShadows:details.shadowMap,fullClipSet:details.clips.length===43,semanticStates:stateResults.every(result=>result.played),specificAttack:stateResults.find(item=>item.state==='attack')?.clip==='Melee_Hook',gpuRender:Number.isFinite(renderMs)&&renderMs<100};
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,stateResults,renderMs,renderer:preview.renderer.getContext().getParameter(preview.renderer.getContext().RENDERER)});
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

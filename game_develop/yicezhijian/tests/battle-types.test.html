@@ -1,0 +1,5 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre><script type="module">
+import {GameApp} from '../src/core/game-app.js';import {addHero} from '../src/core/game-state.js';
+const results=[];for(const battleType of ['normal','encounter','boss']){const app=new GameApp({seed:12});addHero(app.state,'lvbu');addHero(app.state,'guanyu');addHero(app.state,'zhugeliang');addHero(app.state,'zhouyu');app.deploy(0,'front');app.deploy(1,'front');app.deploy(2,'back');app.deploy(3,'back');const started=app.startBattle({battleType});results.push({battleType,started,stateType:app.state.battleType,difficulty:app.state.difficulty,interval:app.state.enemyPlan.spawnInterval,waveSize:app.state.enemyPlan.waveSize,total:app.state.enemyPlan.total,bosses:app.state.enemies.filter(enemy=>enemy.boss).length});}
+const [normal,encounter,boss]=results,pass=results.every(item=>item.started&&item.stateType===item.battleType)&&encounter.difficulty>normal.difficulty&&encounter.total>normal.total&&encounter.interval<normal.interval&&boss.bosses===1&&boss.difficulty>encounter.difficulty;document.querySelector('#result').textContent=JSON.stringify({pass,results});
+</script>

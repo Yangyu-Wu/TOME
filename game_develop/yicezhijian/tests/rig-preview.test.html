@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><canvas id="rig" width="640" height="480"></canvas><pre id="result">running</pre>
+<script type="module">
+import {RigPreview} from '../src/web/rig-preview.js';
+try{
+ const preview=new RigPreview(document.querySelector('#rig'));const details=await preview.load();
+ const names=details.clips.map(clip=>clip.name),hasIdle=names.some(name=>/idle/i.test(name)),hasWalk=names.some(name=>/walk/i.test(name)),hasRun=names.some(name=>/run/i.test(name));
+ const first=names[0],walk=names.find(name=>/walk/i.test(name));const switched=walk?preview.play(walk):false;
+ const timings=[];for(let i=0;i<45;i++){const start=performance.now();preview.render();timings.push(performance.now()-start);}timings.sort((a,b)=>a-b);const p95=timings[Math.floor(timings.length*.95)];
+ const report={pass:details.meshes>0&&details.actors===9&&details.shadowMap&&hasIdle&&hasWalk&&hasRun&&switched&&preview.currentAction?.getClip()?.name===walk&&Number.isFinite(p95),renderer:preview.renderer.getContext().getParameter(preview.renderer.getContext().RENDERER),meshes:details.meshes,actors:details.actors,shadowMap:details.shadowMap,clips:names,switched,renderMedianMs:timings[Math.floor(timings.length*.5)],renderP95Ms:p95};
+ document.querySelector('#result').textContent=JSON.stringify(report);
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

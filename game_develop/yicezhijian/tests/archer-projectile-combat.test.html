@@ -1,0 +1,8 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre>
+<script type="module">
+import {BattleSimulation} from '../src/core/battle-simulation.js';
+const battle=new BattleSimulation(),archer={id:'hero-archer',instanceId:'hero-archer',role:'archer',x:100,y:200,facing:1,damage:20},target={id:'enemy',x:300,y:200,currentHp:100,maxHp:100,shield:0,dead:false,hitFlash:0};
+const state={battleElapsed:1,difficulty:1,projectiles:[],effects:[],screenShake:0,roster:[archer],summons:[],enemies:[target]};
+battle.fireHeroArrow(archer,target,state);const shot=state.projectiles[0],hpBefore=target.currentHp,hasProjectile=Boolean(shot&&shot.team==='ally'&&shot.kind==='arrow');battle.updateProjectiles(state,[],.2);const noInstantDamage=target.currentHp===hpBefore&&state.projectiles.length===1;battle.updateProjectiles(state,[],.3);const hitOnArrival=target.currentHp<hpBefore&&state.projectiles.length===0;
+document.querySelector('#result').textContent=JSON.stringify({pass:hasProjectile&&noInstantDamage&&hitOnArrival,checks:{hasProjectile,noInstantDamage,hitOnArrival},impact:{hp:target.currentHp,hitFlash:target.hitFlash,direction:target.hitDirection}});
+</script>

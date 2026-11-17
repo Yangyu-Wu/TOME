@@ -1,0 +1,9 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre>
+<script type="module">
+import {motionPose} from '../src/assets/heroes/motion.js';
+const idle=motionPose({walkPhase:1,moving:false}),anticipation=motionPose({walkPhase:1,moving:false,attackFlash:.2}),strike=motionPose({walkPhase:1,moving:false,attackFlash:.1}),recovery=motionPose({walkPhase:1,moving:false,attackFlash:.015}),hit=motionPose({walkPhase:1,moving:false,hitFlash:.07});
+const roles=['spear','cavalry','archer','shield','mage'].map(role=>motionPose({role,walkPhase:.4,attackFlash:.1}));
+const reaches=new Set(roles.map(pose=>pose.weaponReach));
+const checks={attackAnticipation:anticipation.attackProgress<.3&&anticipation.attackArc<0,weaponStrike:Math.abs(strike.attackArc)>Math.abs(anticipation.attackArc),followThrough:recovery.cape!==idle.cape,hitRecoil:hit.recoil<0,stableIdle:Number.isFinite(idle.squash)&&idle.squash>0,roleSpecificWeaponArcs:reaches.size>=4};
+document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks});
+</script>

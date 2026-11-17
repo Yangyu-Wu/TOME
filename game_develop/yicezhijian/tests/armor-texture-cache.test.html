@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre>
+<script type="module">
+import * as THREE from '../vendor/three/three.module.min.js';
+import {attachHeroArmor,releaseHeroArmorMaps} from '../src/assets/heroes/equipment/armor.js';
+try{
+  const makeActor=()=>{const root=new THREE.Group();for(const name of ['spine_03','upperarm_l','upperarm_r','pelvis']){const bone=new THREE.Group();bone.name=name;root.add(bone);}return {root};};
+  const first=makeActor(),second=makeActor();attachHeroArmor(first,'spear','ally','generic');attachHeroArmor(second,'spear','ally','generic');
+  const sharedColor=first.armorMaps.colorMap===second.armorMaps.colorMap,sharedNormal=first.armorMaps.normalMap===second.armorMaps.normalMap,sharedRoughness=first.armorMaps.roughnessMap===second.armorMaps.roughnessMap;
+  releaseHeroArmorMaps(first);const survivingAfterFirstRelease=!second.armorMaps.colorMap.source.data.width||second.armorMaps.colorMap.image.width===1024;
+  releaseHeroArmorMaps(second);
+  const checks={sharedColor,sharedNormal,sharedRoughness,survivingAfterFirstRelease};
+  document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,textureSize:1024});
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><canvas></canvas><pre id="result">running</pre><script type="module">
+import {GpuHeroLayer} from '../src/web/gpu-hero-layer.js';
+import * as THREE from '../vendor/three/three.module.min.js';
+try{
+ const layer=new GpuHeroLayer(document.querySelector('canvas'));
+ await layer.load('../src/assets/heroes/animations/quaternius-ual2/ual2-standard.glb','../src/assets/heroes/models/quaternius-base-male/Superhero_Male_FullBody.gltf');
+ const soldier=layer.actorFor({id:'soldier',heroId:'guanyu',role:'spear'}),scholar=layer.actorFor({id:'scholar',heroId:'zhugeliang',role:'mage'}),checks={};
+ checks.sixIndependentSegments=soldier.lowerGarments.length===6;
+ checks.rigidArmorOnlyOnCombatRoles=soldier.root.getObjectsByProperty('name','greave-l').length===1&&scholar.root.getObjectsByProperty('name','greave-l').length===0;
+ checks.correctBoneParents=['l','r'].every(side=>soldier.root.getObjectByName('trousers-'+side).parent.name==='thigh_'+side&&soldier.root.getObjectByName('gaiter-'+side).parent.name==='calf_'+side&&soldier.root.getObjectByName('boot-'+side).parent.name==='foot_'+side);
+ const calf=soldier.root.getObjectByName('calf_l'),foot=soldier.root.getObjectByName('foot_l'),gaiter=soldier.root.getObjectByName('gaiter-l'),before=gaiter.getWorldPosition(new THREE.Vector3());
+ calf.rotation.x+=.6;soldier.root.updateMatrixWorld(true);
+ const after=gaiter.getWorldPosition(new THREE.Vector3()),axis=new THREE.Vector3(0,1,0).applyQuaternion(gaiter.quaternion),expected=foot.position.clone().normalize();
+ checks.followsKnee=before.distanceTo(after)<1e-6&&gaiter.parent===calf;
+ checks.axisFitsImportedBone=axis.distanceTo(expected)<1e-6;
+ const boot=soldier.root.getObjectByName('boot-l'),toe=boot.getObjectByName('boot-upper-l'),point=new THREE.Vector3(0,.1,0);boot.localToWorld(point);const first=point.clone();calf.rotation.x-=1.2;soldier.root.updateMatrixWorld(true);boot.localToWorld(point.set(0,.1,0));checks.bootMovesWithLeg=point.distanceTo(first)>.01;
+ checks.textileLeatherMetalDistinct=toe.material.roughness>soldier.root.getObjectByName('greave-l').material.roughness;
+ checks.paletteProtected=toe.material.userData.authoredHeroPalette===true;
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks});layer.dispose();
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

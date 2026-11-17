@@ -1,0 +1,9 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre>
+<script type="module">
+import * as THREE from '../vendor/three/three.module.min.js';
+import {attachHeroIdentity,animateHeroIdentity} from '../src/assets/heroes/equipment/identity.js';
+import {attachHeroCape,animateHeroCape} from '../src/assets/heroes/equipment/armor.js';
+const make=()=>{const root=new THREE.Group();for(const name of ['Head','spine_03']){const bone=new THREE.Group();bone.name=name;root.add(bone);}const actor={root};attachHeroIdentity(actor,'guanyu');attachHeroCape(actor,{boss:true});return actor;};
+const left=make(),right=make();animateHeroIdentity(left,{time:0,hit:true,hitDirection:-1,hitStrength:1});animateHeroIdentity(right,{time:0,hit:true,hitDirection:1,hitStrength:1});animateHeroCape(left,{hit:true,hitDirection:-1,hitStrength:1});animateHeroCape(right,{hit:true,hitDirection:1,hitStrength:1});
+const checks={headReactOppositeDirections:left.identity.rotation.y<0&&right.identity.rotation.y>0,capeReactsOppositeDirections:left.cape.rotation.z<0&&right.cape.rotation.z>0,finite:[left.identity.rotation.y,right.identity.rotation.y,left.cape.rotation.z,right.cape.rotation.z].every(Number.isFinite)};document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks});
+</script>

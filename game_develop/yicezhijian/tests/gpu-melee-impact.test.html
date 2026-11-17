@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><canvas></canvas><pre id="result">running</pre><script type="module">
+import {GpuHeroLayer} from '../src/web/gpu-hero-layer.js';
+try{
+ const layer=new GpuHeroLayer(document.querySelector('canvas'));layer.ready=true;layer.clock.getDelta=()=>1/60;
+ const effect={id:'strike-1',type:'hit',kind:'melee',x:480,y:350,life:.25,maxLife:.28,direction:1},checks={};
+ layer.render([],[],[effect]);const sparks=layer.meleeImpacts.get(effect.id),gl=layer.renderer.getContext(),dpr=layer.renderer.getPixelRatio();
+ function opaqueCount(){const w=Math.floor(140*dpr),h=w,pixels=new Uint8Array(w*h*4);gl.readPixels(Math.floor(410*dpr),Math.floor(180*dpr),w,h,gl.RGBA,gl.UNSIGNED_BYTE,pixels);let count=0;for(let i=3;i<pixels.length;i+=4)if(pixels[i]>10)count++;return count;}
+ checks.actualGpuPixels=opaqueCount()>10;
+ checks.oneSharedBurst=sparks.geometry.attributes.position.count===18&&layer.meleeImpacts.size===1;
+ const age=sparks.material.uniforms.uAge.value;for(let i=0;i<10;i++)layer.render([],[],[effect]);checks.simulationOwnsAge=sparks.material.uniforms.uAge.value===age&&layer.meleeImpacts.get(effect.id)===sparks;
+ effect.life=.08;layer.render([],[],[effect]);checks.agesWithCombat=sparks.material.uniforms.uAge.value>age;
+ let geometryFreed=false,materialFreed=false;sparks.geometry.addEventListener('dispose',()=>geometryFreed=true);sparks.material.addEventListener('dispose',()=>materialFreed=true);layer.render([],[],[]);
+ checks.reclaimsExpired=layer.meleeImpacts.size===0&&geometryFreed&&materialFreed;checks.clearsPixels=opaqueCount()===0;
+ layer.render([],[],[{...effect,id:'strike-2',direction:-1}]);checks.facingSupported=layer.meleeImpacts.get('strike-2').material.uniforms.uFacing.value===-1;
+ layer.dispose();checks.layerDisposeClearsBursts=layer.meleeImpacts.size===0;
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks});
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

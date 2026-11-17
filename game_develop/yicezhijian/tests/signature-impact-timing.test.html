@@ -1,0 +1,29 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre><script type="module">
+import {BattleSimulation} from '../src/core/battle-simulation.js';
+import {SIGNATURE_ATTACKS} from '../src/heroes/attack-timing.js';
+import {motionPose} from '../src/assets/heroes/motion.js';
+try{
+ const battle=new BattleSimulation(),checks={},results=[];
+ function fixture(heroId='guanyu',rate=1){const unit={id:heroId,heroId,role:'spear',x:300,y:300,damage:10,currentHp:1000,maxHp:1000,range:42,speed:58,facing:1,attackCooldown:0,skillCooldown:99,statuses:[]},target={id:'target',x:335,y:300,currentHp:1000,maxHp:1000,dead:false,shield:0},state={roster:[unit],enemies:[target],summons:[],effects:[],screenShake:0,synergyEffects:{attackSpeed:rate}};return{unit,target,state};}
+ for(const id of Object.keys(SIGNATURE_ATTACKS)){
+  const {unit,target,state}=fixture(id);battle.updateFront(unit,[unit],[target],state,0);const motion=unit.attackMotion,initial=target.currentHp;
+  checks[id+'WindupHasNoDamage']=initial===1000&&state.effects.length===0&&state.screenShake===0;
+  battle.updateFront(unit,[unit],[target],state,motion.impactTime-.001);checks[id+'BeforeContact']=target.currentHp===initial;
+  const pose=motionPose(unit);checks[id+'CanvasSharesPhase']=Math.abs(pose.attackProgress-motion.age/motion.duration)<1e-8;
+  battle.updateFront(unit,[unit],[target],state,.002);const damage=initial-target.currentHp;
+  checks[id+'ContactDealsDamage']=damage>0&&motion.impactApplied&&motion.hit&&target.hitFlash>0&&state.effects.some(e=>e.type==='hit');
+  battle.updateFront(unit,[unit],[target],state,motion.duration*.2);checks[id+'OnlyOneImpact']=Math.abs(initial-target.currentHp-damage)<1e-8;
+  battle.updateFront(unit,[unit],[target],state,motion.duration);checks[id+'RecoveryEnds']=!motion.active;
+  checks[id+'PreservesBaselineDps']=Math.abs(damage/motion.duration-10/.3)<1e-6;
+  results.push({id,duration:motion.duration,impactTime:motion.impactTime,damage});
+ }
+ const miss=fixture();battle.updateFront(miss.unit,[miss.unit],[miss.target],miss.state,0);miss.target.x=500;battle.updateFront(miss.unit,[miss.unit],[miss.target],miss.state,.7);checks.outOfReachMisses=miss.target.currentHp===1000&&miss.unit.attackMotion.hit===false;
+ const behind=fixture();battle.updateFront(behind.unit,[behind.unit],[behind.target],behind.state,0);behind.target.x=270;battle.updateFront(behind.unit,[behind.unit],[behind.target],behind.state,.7);checks.behindAttackerMisses=behind.target.currentHp===1000&&!behind.unit.attackMotion.hit&&behind.unit.facing===1;
+ const locked=fixture();battle.updateFront(locked.unit,[locked.unit],[locked.target],locked.state,0);locked.target.dead=true;const replacement={...locked.target,id:'replacement',dead:false};battle.updateFront(locked.unit,[locked.unit],[locked.target,replacement],locked.state,.7);checks.noInvisibleRetarget=locked.target.currentHp===1000&&replacement.currentHp===1000;
+ const stunned=fixture();battle.updateFront(stunned.unit,[stunned.unit],[stunned.target],stunned.state,0);stunned.unit.statuses=[{type:'stun'}];battle.updateFront(stunned.unit,[stunned.unit],[stunned.target],stunned.state,1);checks.stunCancelsPendingImpact=stunned.unit.attackMotion.cancelled&&stunned.target.currentHp===1000;
+ const dying=fixture();battle.updateFront(dying.unit,[dying.unit],[dying.target],dying.state,0);dying.unit.dead=true;battle.updateFront(dying.unit,[dying.unit],[dying.target],dying.state,1);checks.deathCancelsPendingImpact=dying.unit.attackMotion.cancelled&&dying.target.currentHp===1000;
+ const fast=fixture('zhaoyun',1.4);battle.updateFront(fast.unit,[fast.unit],[fast.target],fast.state,0);checks.hasteCompressesWholeAction=Math.abs(fast.unit.attackMotion.duration-SIGNATURE_ATTACKS.zhaoyun.duration/1.4)<1e-8;
+ const coarse=fixture();battle.updateFront(coarse.unit,[coarse.unit],[coarse.target],coarse.state,0);battle.updateFront(coarse.unit,[coarse.unit],[coarse.target],coarse.state,2);const remaining=coarse.target.currentHp;battle.advanceSignatureAttack(coarse.unit,[coarse.target],coarse.state,2);checks.largeStepDoesNotSkipOrRepeat=remaining<1000&&coarse.target.currentHp===remaining;
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,results});
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

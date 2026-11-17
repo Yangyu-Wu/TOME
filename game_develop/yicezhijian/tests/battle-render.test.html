@@ -1,0 +1,4 @@
+<!doctype html><meta charset="utf-8"><style>body{margin:0;background:#111}canvas{display:block;width:960px;height:600px}</style><canvas id="game" width="960" height="600"></canvas><script type="module">
+import {GameApp} from '../src/core/game-app.js';import {addHero} from '../src/core/game-state.js';import {CanvasRenderer} from '../src/web/canvas-renderer.js';
+const app=new GameApp({seed:7});addHero(app.state,'guanyu');addHero(app.state,'zhaoyun');addHero(app.state,'zhugeliang');addHero(app.state,'zhouyu');app.state.roster.forEach(unit=>{unit.star=3;unit.maxHp*=3;unit.currentHp=unit.maxHp;unit.damage*=3;});app.deploy(0,'front');app.deploy(1,'front');app.deploy(2,'back');app.deploy(3,'back');app.startBattle({difficulty:8,duration:115});for(let i=0;i<520&&app.state.phase==='battle';i++)app.battle.update(app.state,1/60);new CanvasRenderer(document.querySelector('#game')).render(app.state);
+</script>

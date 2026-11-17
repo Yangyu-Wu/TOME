@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><canvas></canvas><pre id="result">running</pre><script type="module">
+import {GpuHeroLayer} from '../src/web/gpu-hero-layer.js';
+import {soleBottomY} from '../src/assets/heroes/foot-contact.js';
+import * as THREE from '../vendor/three/three.module.min.js';
+try{
+ const layer=new GpuHeroLayer(document.querySelector('canvas'));
+ await layer.load('../src/assets/heroes/animations/quaternius-ual2/ual2-standard.glb','../src/assets/heroes/models/quaternius-base-male/Superhero_Male_FullBody.gltf');
+ const unit={id:'contact',heroId:'guanyu',role:'spear',x:300,y:400,facing:1,walkPhase:0};layer.clock.getDelta=()=>1/60;
+ layer.render([unit]);const actor=layer.actors.get('contact');actor.mixer.timeScale=0;
+ for(let i=0;i<90;i++)layer.render([unit]);
+ actor.root.updateMatrixWorld(true);const bottoms=actor.soleContacts.map(soleBottomY),residual=Math.abs(Math.min(...bottoms)-200),offset=actor.groundOffset;
+ layer.render([unit]);const checks={restsOnSole:residual<.1,noOffsetDrift:Math.abs(offset-actor.groundOffset)<1e-4,usesBothSoles:actor.soleContacts.length===2};
+ layer.render([{...unit,airHeight:30}]);checks.airborneNoCorrection=actor.groundOffset===0;
+ layer.render([{...unit,dead:true,deathAge:.2}]);checks.deathNotPulledUpright=actor.groundOffset===0;
+ const sphere=new THREE.Mesh(new THREE.SphereGeometry(1,48,32));sphere.position.set(1,8,3);sphere.scale.set(2,3,4);sphere.rotation.set(.4,.7,.2);sphere.updateMatrixWorld(true);
+ const vertices=sphere.geometry.attributes.position,v=new THREE.Vector3();let sampled=Infinity;
+ for(let i=0;i<vertices.count;i++){v.fromBufferAttribute(vertices,i).applyMatrix4(sphere.matrixWorld);sampled=Math.min(sampled,v.y);}
+ checks.ellipsoidBoundMatchesGeometry=Math.abs(soleBottomY(sphere)-sampled)<.02;
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,residual,offset});layer.dispose();sphere.geometry.dispose();sphere.material.dispose();
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

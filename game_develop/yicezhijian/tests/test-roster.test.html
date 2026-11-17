@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>一策之间 · 全武将测试</title><link rel="stylesheet" href="../style.css"><style>#result,#error{display:none}</style>
+<main class="game-shell"><section class="stage-wrap"><div id="deployment-root"></div><button class="sound-toggle">音效：开</button></section></main>
+<pre id="result">running</pre><pre id="error"></pre>
+<script type="module">
+import {GameApp} from '../src/core/game-app.js';
+import {MemoryStorage} from '../src/platform/storage.js';
+import {HEROES,createHeroUnit} from '../src/heroes/index.js';
+import {DeploymentView} from '../src/web/deployment-view.js';
+const checks={};
+try{
+  const storage=new MemoryStorage(),app=new GameApp({storage,testMode:true,seed:11});app.load();
+  checks.freshOwnsAll=HEROES.every(hero=>app.state.roster.some(unit=>unit.heroId===hero.id))&&app.state.roster.length===59;
+  app.load();app.load();checks.idempotent=app.state.roster.length===59;
+  app.state.gold=0;
+  checks.everyHeroCanDeployAndWithdraw=HEROES.every(hero=>{
+    const index=app.state.roster.findIndex(unit=>unit.heroId===hero.id),unit=app.state.roster[index];
+    return ['front','back'].every(slot=>[0,1].every(position=>app.deploy(index,slot,position)&&unit.slot===slot&&unit.formationPosition===position))&&app.deploy(index,'bench')&&unit.slot==='bench';
+  });
+  checks.noCost=app.state.gold===0&&app.state.roster.length===59;
+  app.setupTestRoster();const first=app.state.roster.find(unit=>unit.slot==='front'&&unit.formationPosition===0),replacement=app.state.roster.find(unit=>unit.heroId==='zhangliang');
+  app.deploy(app.state.roster.indexOf(replacement),'front',0);
+  checks.replacesFullSlot=first.slot==='bench'&&replacement.slot==='front'&&app.state.roster.filter(unit=>unit.slot==='front').length===2&&app.state.roster.length===59;
+  checks.invalidPositionsRejected=!app.deploy(0,'front',2)&&!app.deploy(0,'back',-1)&&!app.deploy(0,'wrong',0);
+  app.deploy(app.state.roster.indexOf(first),'front',1);app.deploy(app.state.roster.indexOf(first),'bench');
+  app.load();checks.sparseSlotSurvivesReload=app.state.roster.some(unit=>unit.heroId==='zhangliang'&&unit.slot==='front'&&unit.formationPosition===0)&&!app.state.roster.some(unit=>unit.slot==='front'&&unit.formationPosition===1);
+  const legacy=new MemoryStorage(),veteran=createHeroUnit('guanyu','front',3),reserve=createHeroUnit('guanyu','bench',2);
+  legacy.save('yice-save-v1',{roster:[veteran,reserve],wave:7,gold:3,shop:Array(5).fill(null)});
+  const migrated=new GameApp({storage:legacy,testMode:true});migrated.load();
+  checks.legacyProgressPreserved=migrated.state.wave===7&&migrated.state.gold===3&&migrated.state.roster.length===60&&migrated.state.roster.find(unit=>unit.instanceId===veteran.instanceId)?.star===3&&migrated.state.roster.find(unit=>unit.instanceId===veteran.instanceId)?.slot==='front'&&migrated.state.roster.some(unit=>unit.instanceId===reserve.instanceId&&unit.star===2);
+  migrated.setupTestRoster();migrated.load();checks.presetPreservesCollection=migrated.state.roster.length===60&&migrated.state.roster.find(unit=>unit.instanceId===veteran.instanceId)?.slot==='front';
+  app.restart();checks.restartOwnsAll=app.state.roster.length===59&&app.state.testMode;
+  const standard=new GameApp({storage:new MemoryStorage()});standard.newGame();checks.normalModeUnchanged=standard.state.roster.length===0&&!standard.state.testMode;
+
+  const root=document.querySelector('#deployment-root'),view=new DeploymentView(root,app);app.subscribe(state=>view.render(state));
+  const select=(slot,position)=>root.querySelector(`[data-slot="${slot}"][data-position="${position}"]`).click();
+  const pick=id=>root.querySelector(`[data-select-unit="${app.state.roster.find(unit=>unit.heroId===id).instanceId}"]`).click();
+  const search=text=>{const input=root.querySelector('[data-hero-search]');input.value=text;input.dispatchEvent(new Event('input'));};
+  checks.catalogHasAll59=root.querySelectorAll('[data-select-unit]').length===59;
+  const grid=root.querySelector('.test-catalog-grid');grid.scrollTop=grid.scrollHeight;
+  const last=grid.querySelector('.test-catalog-item:last-child').getBoundingClientRect(),bounds=grid.getBoundingClientRect();
+  checks.lastHeroReachable=grid.scrollHeight>grid.clientHeight&&last.bottom<=bounds.bottom+1&&last.top>=bounds.top;
+  select('back',1);search('张梁');checks.searchByName=root.querySelectorAll('[data-select-unit]').length===1;pick('zhangliang');
+  checks.uiDeploysLastHero=app.state.roster.find(unit=>unit.heroId==='zhangliang').slot==='back'&&app.state.roster.find(unit=>unit.heroId==='zhangliang').formationPosition===1;
+  root.querySelector('[data-action=withdraw]').click();checks.uiWithdraws=app.state.roster.find(unit=>unit.heroId==='zhangliang').slot==='bench'&&app.state.roster.length===59;
+  search('七星天诏');checks.searchBySkill=root.querySelectorAll('[data-select-unit]').length===1;
+  search('弓将');checks.searchByRole=root.querySelectorAll('[data-select-unit]').length===HEROES.filter(hero=>hero.role==='archer').length;
+  search('');const filter=root.querySelector('[data-hero-faction]');filter.value='吴';filter.dispatchEvent(new Event('change'));checks.factionFilter=root.querySelectorAll('[data-select-unit]').length===HEROES.filter(hero=>hero.faction==='吴').length;
+  search('<无此武将>');checks.noMatch=!!root.querySelector('.test-no-match')&&!root.querySelector('[data-select-unit]');
+  view.faction='';view.search='';view.render(app.state);select('front',0);pick('zhangliang');select('front',1);pick('caocao');select('back',0);pick('huatuo');select('back',1);pick('liubei');
+  root.querySelector('[data-battle=normal]').click();checks.customBattle=app.state.phase==='battle'&&app.state.deployedCount===4;
+  checks.battleMatchesPositions=app.state.roster.find(unit=>unit.heroId==='zhangliang').x===410&&app.state.roster.find(unit=>unit.heroId==='caocao').x===530&&app.state.roster.find(unit=>unit.heroId==='huatuo').skillCooldown===2.5&&app.state.roster.find(unit=>unit.heroId==='liubei').skillCooldown===3.5;
+  checks.cannotChangeDuringBattle=!app.deploy(0,'front',0)&&!app.setupTestRoster();
+  app.state.battleTime=.001;app.tick(1/30);app.continueAfterBattle();app.load();checks.postBattleOwnsAll=app.state.roster.length===59&&app.state.phase==='camp';
+  app.setupTestRoster();view.selected={slot:'front',position:0};view.render(app.state);
+  const stage=root.getBoundingClientRect(),footer=root.querySelector('footer').getBoundingClientRect(),catalog=root.querySelector('.test-catalog-grid').getBoundingClientRect();
+  checks.layoutFits=footer.bottom<=stage.bottom&&footer.right<=stage.right&&catalog.right<=stage.right&&catalog.bottom<=footer.top&&catalog.height>80;
+  document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks});
+  document.documentElement.dataset.ready='true';
+}catch(error){document.querySelector('#error').textContent=error.stack;document.querySelector('#result').textContent=JSON.stringify({pass:false,checks,error:error.stack});}
+</script></html>

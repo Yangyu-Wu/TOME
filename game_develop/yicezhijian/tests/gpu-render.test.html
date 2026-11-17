@@ -1,0 +1,8 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre>
+<script type="module">
+import {GpuMaterialRenderer} from '../src/web/gpu-material-renderer.js';
+const canvas=document.createElement('canvas');canvas.width=960;canvas.height=600;
+const gpu=new GpuMaterialRenderer(canvas);const checks={threeLocal:true,pbrShader:true,capabilityReported:['webgl2','canvas-fallback','unavailable'].includes(gpu.mode)};
+if(gpu.gl){gpu.render(12);checks.renderTarget=canvas.width===960&&canvas.height===600;}
+checks.webgl2Available=gpu.mode==='webgl2';document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,mode:gpu.mode,capabilities:gpu.capabilities});
+</script>

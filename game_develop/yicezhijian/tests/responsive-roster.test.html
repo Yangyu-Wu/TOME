@@ -1,0 +1,13 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>一策之间 · 小屏编队验收</title>
+<style>body{margin:0;background:#101b2a;display:flex;justify-content:center}iframe{width:390px;height:844px;border:0}#result,#error{display:none}</style>
+<iframe title="390 像素宽编队页" src="test-roster.test.html"></iframe><pre id="result">running</pre><pre id="error"></pre>
+<script type="module">
+const frame=document.querySelector('iframe');
+try{
+  await new Promise(resolve=>{if(frame.contentDocument?.documentElement.dataset.ready)resolve();else frame.onload=resolve;});
+  const doc=frame.contentDocument,win=frame.contentWindow,child=JSON.parse(doc.querySelector('#result').textContent),stage=doc.querySelector('.test-deployment').getBoundingClientRect(),footer=doc.querySelector('footer').getBoundingClientRect();
+  const checks={childChecksPassed:child.pass,viewportIs390:win.innerWidth===390,noHorizontalOverflow:stage.left>=0&&stage.right<=win.innerWidth,footerVisible:footer.bottom<=win.innerHeight,all59:doc.querySelectorAll('[data-select-unit]').length===59};
+  document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,child:child.checks});
+  document.documentElement.dataset.ready='true';
+}catch(error){document.querySelector('#error').textContent=error.stack;document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script></html>

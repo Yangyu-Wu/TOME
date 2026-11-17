@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre><script type="module">
+import * as THREE from '../vendor/three/three.module.min.js';
+import {createHeroWeapon,attachHeroWeapon,animateHeroWeapon} from '../src/assets/heroes/equipment/melee-weapons.js';
+import {HERO_BY_ID} from '../src/heroes/catalog.js';
+try{
+ const ids=['guanyu','lvbu','zhaoyun'],checks={},weapons=ids.map(id=>createHeroWeapon(HERO_BY_ID[id].role,id));
+ checks.distinctSilhouettes=new Set(weapons.map(w=>w.userData.signature)).size===3;
+ checks.identityParts=Boolean(weapons[0].getObjectByName('crescent-blade')&&weapons[1].getObjectByName('crescent-wing--1')&&weapons[1].getObjectByName('crescent-wing-1')&&weapons[2].getObjectByName('willow-spearhead'));
+ checks.finiteGeometry=weapons.every(w=>{let ok=true;w.traverse(m=>{if(m.isMesh)ok&&=Array.from(m.geometry.attributes.position.array).every(Number.isFinite);});return ok;});
+ const head=weapons[2].getObjectByName('willow-spearhead').geometry,vertices=head.attributes.position,normals=head.attributes.normal;let raised=false,outward=true;
+ for(let i=0;i<vertices.count;i++){if(vertices.getZ(i)>.015)raised=true;if(Math.abs(vertices.getZ(i))>.001)outward&&=vertices.getZ(i)*normals.getZ(i)>0;}
+ checks.forgedRidgeHasOutwardNormals=raised&&outward;
+ checks.longWeaponScale=weapons.every(w=>{const b=new THREE.Box3().setFromObject(w),s=b.getSize(new THREE.Vector3());return s.y>1.5&&s.y<2&&b.min.y<-.6&&b.max.y>.85;});
+ checks.bladeAnchors=weapons.every(w=>{const base=w.userData.trailBase,tip=w.userData.trailTip;return tip.position.y-base.position.y>.4&&tip.position.y>1.2;});
+ checks.paletteProtected=weapons.every(w=>{let ok=true;w.traverse(m=>{if(m.isMesh)ok&&=m.material.userData.authoredHeroPalette;});return ok;});
+ checks.roleOverride=createHeroWeapon('archer','guanyu').userData.kind==='bow';
+ checks.genericFallback=!createHeroWeapon('spear','jiangwei').userData.signature;
+ const root=new THREE.Group(),hand=new THREE.Bone();hand.name='hand_r';root.add(hand);const actor={root,current:{time:.5,getClip:()=>({duration:1})}};
+ attachHeroWeapon(actor,'spear','guanyu');checks.handAttached=actor.weapon.parent===hand;
+ for(let i=0;i<120;i++)animateHeroWeapon(actor,{attack:true,time:i/60});
+ let maxGlow=0;actor.weapon.traverse(m=>{if(m.isMesh)maxGlow=Math.max(maxGlow,m.material.emissiveIntensity||0);});
+ checks.noAccumulatingGlow=maxGlow<2;
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks});
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

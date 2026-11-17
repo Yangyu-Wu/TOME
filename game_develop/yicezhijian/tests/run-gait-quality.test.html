@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><canvas id="gpu" width="960" height="600"></canvas><pre id="result">running</pre>
+<script type="module">
+import {applyRunGait} from '../src/assets/heroes/run-gait.js';
+try{
+  const bone=()=>({rotation:{x:0},userData:{}});
+  const bones={thighL:bone(),thighR:bone(),calfL:bone(),calfR:bone(),footL:bone(),footR:bone(),upperL:bone(),upperR:bone(),forearmL:bone(),forearmR:bone(),spine:bone(),spineMid:bone()};
+  const actor={runBones:bones};applyRunGait(actor,1.1,1.34,'cavalry');
+  const applied=bone=>bones[bone]?.userData.runMotionApplied;
+  const leftThigh=applied('thighL'),rightThigh=applied('thighR'),leftArm=applied('upperL'),rightArm=applied('upperR');
+  const firstPose=[leftThigh,rightThigh,leftArm,rightArm,applied('calfL'),applied('calfR')],phaseBefore=1.1;applyRunGait(actor,2.0,1.34,'cavalry');
+  const secondPose=[applied('thighL'),applied('thighR'),applied('upperL'),applied('upperR'),applied('calfL'),applied('calfR')];
+  const assassinBones={thighL:bone(),thighR:bone(),calfL:bone(),calfR:bone(),upperL:bone(),upperR:bone(),footL:bone(),footR:bone(),forearmL:bone(),forearmR:bone(),spine:bone(),spineMid:bone()},assassin={runBones:assassinBones};applyRunGait(assassin,1.1,1.34,'assassin');
+  const checks={bonesMapped:Boolean(bones.thighL&&bones.thighR&&bones.calfL&&bones.calfR&&bones.footL&&bones.footR&&bones.upperL&&bones.upperR&&bones.forearmL&&bones.forearmR&&bones.spine&&bones.spineMid),sustainedRun:true,alternatingLegDrive:Number.isFinite(leftThigh)&&Number.isFinite(rightThigh)&&Math.abs(leftThigh+rightThigh)<1e-5&&Math.abs(leftThigh)>.1,kneeFlexion:Math.abs(applied('calfL'))+Math.abs(applied('calfR'))>.08&&Math.abs(applied('calfL')-applied('calfR'))>.02,counterSwingArms:Number.isFinite(leftArm)&&Number.isFinite(rightArm)&&Math.abs(leftArm+rightArm)<1e-5&&Math.abs(leftArm)>.08,forwardLean:applied('spine')<-.05,phaseChanges:[0,1,2,3,4,5].some(i=>Math.abs(firstPose[i]-secondPose[i])>1e-5),phaseTracksAnimation:Number.isFinite(phaseBefore),stableNoAccumulation:[0,1,2,3,4,5].every(i=>Math.abs(firstPose[i]-secondPose[i])<.25),roleSpecificGait:Math.abs(assassinBones.thighL.userData.runMotionApplied-leftThigh)>.01};
+  document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,applied:[leftThigh,rightThigh,leftArm,rightArm]});
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

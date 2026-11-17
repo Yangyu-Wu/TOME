@@ -1,0 +1,11 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre>
+<script type="module">
+import {applyCombatPose} from '../src/assets/heroes/combat-pose.js';
+const bone=()=>({rotation:{z:0},userData:{}}),bones={spine:bone(),spineMid:bone(),upperR:bone(),lowerR:bone(),upperL:bone()},actor={runBones:bones};
+applyCombatPose(actor,.5,'cavalry','attack',1);const attack=[bones.spine.rotation.z,bones.upperR.rotation.z,bones.lowerR.rotation.z];
+applyCombatPose(actor,.5,'cavalry','attack',1);const repeated=[bones.spine.rotation.z,bones.upperR.rotation.z,bones.lowerR.rotation.z];
+applyCombatPose(actor,0,'cavalry','idle',1);const neutral=[bones.spine.rotation.z,bones.upperR.rotation.z,bones.lowerR.rotation.z];
+const assassinActor={runBones:{spine:bone(),spineMid:bone(),upperR:bone(),lowerR:bone(),upperL:bone()}};applyCombatPose(assassinActor,.5,'assassin','attack',1);
+const checks={attackHasTorsoTwist:Math.abs(attack[0])>.05,attackDrivesArm:Math.abs(attack[1])>.05,noAccumulation:attack.every((v,i)=>Math.abs(v-repeated[i])<1e-6),returnsToNeutral:neutral.every(v=>Math.abs(v)<1e-6),roleSpecific:Math.abs(assassinActor.runBones.upperR.rotation.z-attack[1])>.01};
+document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,attack,neutral});
+</script>

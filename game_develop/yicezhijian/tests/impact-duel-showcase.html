@@ -1,0 +1,25 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>一策之间 · 实战命中时序</title>
+<style>html,body{margin:0;background:#0b1420;color:#e6dfce;font:15px system-ui}header{padding:18px 24px}h1{font-size:22px;margin:0 0 12px}select,button{background:#203248;border:1px solid #536476;border-radius:5px;padding:7px 12px;color:inherit}label{margin-left:14px}.stage{position:relative;width:960px;height:600px;background:radial-gradient(ellipse at 50% 64%,#344351,#101b2a 65%);max-width:100%}canvas{position:absolute;inset:0;width:100%;height:100%}.status{position:absolute;top:16px;left:24px;right:24px;display:flex;justify-content:space-between;pointer-events:none}.status div{width:210px}progress{display:block;width:210px;height:10px;accent-color:#5eacff}.enemy progress{accent-color:#ed6773}.legend{padding:14px 24px;color:#acbbcb}#error{color:#fa91a0}</style>
+<header><h1>实战命中 · 战斗时钟与 GPU 动作同步</h1><select id="hero"><option value="guanyu">关羽 · 横扫</option><option value="lvbu">吕布 · 下劈</option><option value="zhaoyun">赵云 · 突刺</option></select> <button id="play">暂停</button> <button id="restart">重新演示</button><label>速度 <select id="speed"><option value="1">正常</option><option value=".25">四分之一</option></select></label><label>攻击进度 <input id="phase" type="range" min="0" max=".999" step=".001" value="0"></label></header>
+<div class="stage"><canvas></canvas><div class="status"><div><span id="ally-label"></span><progress max="1000" value="1000"></progress></div><div class="enemy"><span id="enemy-label"></span><progress id="hp" max="1000" value="1000"></progress></div></div></div>
+<div class="legend" id="status"></div><pre id="error"></pre>
+<script type="module">
+import {BattleSimulation} from '../src/core/battle-simulation.js';
+import {GpuHeroLayer} from '../src/web/gpu-hero-layer.js';
+try{
+ const layer=new GpuHeroLayer(document.querySelector('canvas')),battle=new BattleSimulation();await layer.load('../src/assets/heroes/animations/quaternius-ual2/ual2-standard.glb','../src/assets/heroes/models/quaternius-base-male/Superhero_Male_FullBody.gltf');
+ layer.camera.zoom=3;layer.camera.position.set(480,210,500);layer.camera.lookAt(480,210,0);layer.camera.updateProjectionMatrix();
+ const $=id=>document.getElementById(id);let unit,target,state,paused=false,last=performance.now();
+ $('hero').value=new URLSearchParams(location.search).get('hero')||'guanyu';
+ function reset(){const id=$('hero').value;unit={id:'attacker-'+id,heroId:id,role:'spear',x:450,y:440,facing:1,damage:20,currentHp:1000,maxHp:1000,range:42,speed:58,attackCooldown:0,skillCooldown:999,statuses:[]};target={id:'training-guard',heroId:'gaoshun',role:'shield',x:485,y:440,currentHp:1000,maxHp:1000,shield:0,facing:-1,enemy:true,hitFlash:0};state={roster:[unit],enemies:[target],summons:[],effects:[],screenShake:0};battle.updateFront(unit,[unit],[target],state,0);}
+ function render(dt){layer.clock.getDelta=()=>dt;layer.render([unit,target],[],state.effects);$('ally-label').textContent=$('hero').selectedOptions[0].textContent;$('enemy-label').textContent=`练武甲士 · ${Math.round(target.currentHp)} / 1000`;$('hp').value=target.currentHp;const m=unit.attackMotion,p=m.age/m.duration;$('phase').value=p;
+  $('status').textContent=`${m.age<m.impactTime?'蓄力 / 尚未造成伤害':m.hit?'命中后收势':'挥空后收势'} · 第 ${m.sequence} 次攻击 · ${m.age.toFixed(3)} / ${m.duration.toFixed(2)} 秒 · 命中点 ${m.impactTime.toFixed(3)} 秒`;
+ }
+ function tick(dt){target.hitFlash=Math.max(0,target.hitFlash-dt);battle.updateFront(unit,[unit],[target],state,dt);for(const e of state.effects)e.life-=dt;state.effects=state.effects.filter(e=>e.life>0);render(dt);}
+ function sample(phase){paused=true;$('play').textContent='播放';reset();const duration=unit.attackMotion.duration;let remaining=duration*Math.max(0,Math.min(.999,phase));while(remaining>1e-8){const dt=Math.min(remaining,1/120);tick(dt);remaining-=dt;}const actor=layer.actorFor(unit);actor.polearmRig.weight=1;render(0);}
+ $('play').onclick=()=>{paused=!paused;$('play').textContent=paused?'播放':'暂停';};$('restart').onclick=()=>{reset();paused=false;$('play').textContent='暂停';};$('phase').oninput=()=>sample(Number($('phase').value));$('hero').onchange=()=>{reset();};
+ function frame(now){const dt=Math.min(.05,(now-last)/1000)*Number($('speed').value);last=now;if(!paused&&!target.dead)tick(dt);requestAnimationFrame(frame);}
+ window.polearmShowcase={layer,sample,select(id){$('hero').value=id;reset();},view(){},get state(){return state;}};
+ reset();render(1/60);requestAnimationFrame(frame);document.body.dataset.ready='true';
+}catch(error){document.querySelector('#error').textContent=error.stack;document.body.dataset.ready='error';}
+</script></html>

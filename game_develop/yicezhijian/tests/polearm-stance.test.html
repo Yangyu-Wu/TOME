@@ -1,0 +1,37 @@
+<!doctype html><meta charset="utf-8"><canvas></canvas><pre id="result">running</pre><script type="module">
+import * as THREE from '../vendor/three/three.module.min.js';
+import {GpuHeroLayer} from '../src/web/gpu-hero-layer.js';
+import {BattleSimulation} from '../src/core/battle-simulation.js';
+import {restoreAuthoredPose} from '../src/assets/heroes/pose-layer.js';
+import {soleBottomY} from '../src/assets/heroes/foot-contact.js';
+try{
+ const layer=new GpuHeroLayer(document.querySelector('canvas'));await layer.load('../src/assets/heroes/animations/quaternius-ual2/ual2-standard.glb','../src/assets/heroes/models/quaternius-base-male/Superhero_Male_FullBody.gltf');layer.clock.getDelta=()=>1/60;
+ const checks={},results=[];
+ for(const [i,heroId] of ['guanyu','lvbu','zhaoyun'].entries()){
+  const battle=new BattleSimulation(),unit={id:heroId,heroId,role:'spear',x:400,y:440,facing:i===1?-1:1,currentHp:1000,damage:10,range:42,attackCooldown:0,skillCooldown:999,statuses:[],boss:i===1},target={id:'target',x:400+(i===1?-35:35),y:440,currentHp:1000,maxHp:1000,shield:0},state={roster:[unit],enemies:[target],summons:[],effects:[],screenShake:0};
+  for(let j=0;j<40;j++)layer.render([unit]);battle.updateFront(unit,[unit],[target],state,0);layer.render([unit]);
+  const actor=layer.actorFor(unit),anchors=actor.stance.anchors.map(a=>a.position.clone()),scale=actor.root.scale.x,rootX=actor.root.position.x;
+  let drift=0,groundError=0,pelvisRange=0,kneeRange=0,maxHandError=0;const knee=actor.runBones.calfL.quaternion.clone();
+  for(let j=0;j<60&&unit.attackMotion.active;j++){
+   battle.updateFront(unit,[unit],[target],state,unit.attackMotion.duration/70);layer.render([unit]);
+   if(!actor.stance.active)continue;
+   actor.root.updateMatrixWorld(true);
+   actor.stance.legs.forEach((leg,k)=>{drift=Math.max(drift,leg.foot.getWorldPosition(new THREE.Vector3()).distanceTo(anchors[k])/scale);groundError=Math.max(groundError,Math.abs(soleBottomY(leg.sole)-actor.groundY)/scale);});
+   pelvisRange=Math.max(pelvisRange,actor.stance.pelvis.position.distanceTo(actor.authoredPositions.get(actor.stance.pelvis)));kneeRange=Math.max(kneeRange,knee.angleTo(actor.runBones.calfL.quaternion));maxHandError=Math.max(maxHandError,actor.polearmRig.contact.error);
+  }
+  checks[heroId+'FeetStayPlanted']=drift<.002;
+  checks[heroId+'BothSolesOnGround']=groundError<.003;
+  checks[heroId+'PelvisDrivesStrike']=pelvisRange>.03;
+  checks[heroId+'KneesFlex']=kneeRange>.05;
+  checks[heroId+'NoWholeBodySlide']=Math.abs(actor.root.position.x-rootX)<.001;
+  checks[heroId+'HandsStayAttached']=maxHandError<.002;
+  const pelvis=actor.stance.pelvis,authored=actor.authoredPositions.get(pelvis).clone();restoreAuthoredPose(actor);checks[heroId+'PelvisRestores']=pelvis.position.distanceTo(authored)<1e-8;
+  layer.render([{...unit,x:unit.x+90}]);checks[heroId+'KnockbackReplants']=actor.stance.origin.distanceTo(actor.root.position)<1e-6&&Math.max(...actor.stance.errors)<.002;
+  layer.render([{...unit,airHeight:25}]);checks[heroId+'AirborneReleasesFeet']=!actor.stance.active&&actor.stance.anchors===null;
+  layer.render([{...unit,attackMotion:null,attackFlash:0,moving:true,speed:78}]);checks[heroId+'MovingReleasesFeet']=!actor.stance.active&&actor.stance.anchors===null;
+  layer.render([{...unit,dead:true,deathAge:.1}]);checks[heroId+'DeathReleasesFeet']=!actor.stance.active;
+  results.push({heroId,drift,groundError,pelvisRange,kneeRange,maxHandError});
+ }
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,results});layer.dispose();
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

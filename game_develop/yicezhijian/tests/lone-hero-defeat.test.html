@@ -1,0 +1,4 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre><script type="module">
+import {BattleSimulation} from '../src/core/battle-simulation.js';import {createHeroUnit} from '../src/heroes/index.js';
+const battle=new BattleSimulation(),results=[];for(const heroId of ['lvbu','caocao','guanyu']){const state={phase:'camp',roster:[createHeroUnit(heroId,'front',3)],events:[],enemies:[],summons:[],projectiles:[]};battle.start(state,{difficulty:1,duration:80});for(let i=0;i<5000&&state.phase==='battle';i++)battle.update(state,1/60);results.push({heroId,result:state.phase,elapsed:Number(state.battleElapsed.toFixed(1)),spawned:state.enemySpawned});}document.querySelector('#result').textContent=JSON.stringify({pass:results.every(item=>item.result==='defeat'),results});
+</script>

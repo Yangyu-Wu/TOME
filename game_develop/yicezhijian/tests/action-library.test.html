@@ -1,0 +1,8 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre><script type="module">
+import {ACTION_LIBRARY,findActionClip,actionInventory} from '../src/assets/heroes/action-library.js';
+// Use the actual UAL2 clip exported in this project (LayToIdle). LayFaceUp is
+// not in the downloaded package and made this fixture report a false failure.
+const clips=['Idle','Walk_Carry','SWORD_REGULAR_A','SWORD_REGULAR_A_REC','KNOCKBACK','LayToIdle'].map((name,i)=>({name,duration:1+i/10,tracks:[{},{}]}));
+const inventory=actionInventory(clips);const checks={semanticKeys:Object.keys(ACTION_LIBRARY).length===8,walk:findActionClip(clips,'walk')?.name==='Walk_Carry',attack:findActionClip(clips,'attack')?.name==='SWORD_REGULAR_A',recovery:findActionClip(clips,'attackRecovery')?.name==='SWORD_REGULAR_A_REC',hit:findActionClip(clips,'hit')?.name==='KNOCKBACK',death:findActionClip(clips,'death')?.name==='LayToIdle',missing:inventory.run===null};
+document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,inventory});
+</script>

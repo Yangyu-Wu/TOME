@@ -1,0 +1,26 @@
+<!doctype html><meta charset="utf-8"><canvas id="gpu"></canvas><pre id="result">running</pre>
+<script type="module">
+import {GpuHeroLayer} from '../src/web/gpu-hero-layer.js';
+import * as THREE from '../vendor/three/three.module.min.js';
+try{
+ const layer=new GpuHeroLayer(document.querySelector('canvas'));
+ await layer.load('../src/assets/heroes/animations/quaternius-ual2/ual2-standard.glb','../src/assets/heroes/models/quaternius-base-male/Superhero_Male_FullBody.gltf');
+ const unit={id:'palette',heroId:'guanyu',role:'spear',x:480,y:400,boss:true,facing:1};
+ const actor=layer.actorFor(unit),cape=actor.cape.children[0],beard=actor.identity.children[3];
+ const capeColor=cape.material.color.clone(),beardColor=beard.material.color.clone();
+ layer.clock.getDelta=()=>1/60;layer.render([unit]);
+ const allyCape=cape.material.color.clone();layer.render([{...unit,enemy:true}]);
+ const shader=cape.material.userData.capeShader,mesh=name=>actor.root.getObjectsByProperty('isMesh',true).find(o=>o.material.name===name);
+ const checks={
+  allyCapePreserved:allyCape.equals(capeColor),enemyCapePreserved:cape.material.color.equals(capeColor),
+  beardPreserved:beard.material.color.equals(beardColor),
+  hairDark:mesh('MI_Hair_1').material.color.equals(new THREE.Color('#241d19')),
+  eyesUntinted:mesh('MI_Eyes').material.color.equals(new THREE.Color('#ffffff')),
+  bodyStillRed:mesh('MI_Superhero_Male').material.color.r>mesh('MI_Superhero_Male').material.color.b,
+  capeShaderCompiled:Boolean(shader?.vertexShader.includes('transformed = capeSurface(position)')),
+  windUniformLive:shader?.uniforms.uCapeTime===cape.userData.windUniforms.uCapeTime,
+  programsLinked:layer.renderer.info.programs.every(program=>program.diagnostics?.runnable!==false)
+ };
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks});layer.dispose();
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

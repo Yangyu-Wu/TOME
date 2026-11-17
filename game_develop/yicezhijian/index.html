@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#11120f">
+  <meta name="application-name" content="一策之间">
+  <meta name="description" content="一策之间：招募三国武将，编排前后军阵容，迎战持续来袭的敌军。">
+  <title>一策之间 · 三国自走棋</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="game-shell">
+    <section class="stage-wrap">
+      <canvas id="game" width="960" height="600" aria-label="一策之间战斗场景"></canvas>
+      <canvas id="gpu-heroes" width="960" height="600" aria-label="GPU 英雄渲染层"></canvas>
+      <div id="toast" class="toast" aria-live="polite"></div>
+      <div id="overlay" class="overlay hidden"></div>
+      <div id="deployment-root"></div>
+      <button id="sound-toggle" class="sound-toggle" aria-label="切换战斗音效" aria-pressed="true">音效：开</button>
+    </section>
+  </main>
+  <script type="module" src="src/web/main.js"></script>
+</body>
+</html>

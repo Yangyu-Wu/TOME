@@ -1,0 +1,26 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>一策之间 · 专属武器近景</title>
+<style>html,body{margin:0;background:#0b1019;color:#ded6c4;font:16px system-ui}canvas{display:block;width:100%;height:560px}h1{font-size:22px;margin:24px 5% 0}p{margin:8px 5%;color:#9da9b8}.labels{display:flex;text-align:center}.labels span{flex:1}#error{color:#ef8292}</style>
+<h1>专属武器 · 材质与轮廓预览</h1><p>拖动旋转 · 空格暂停转台。此处为项目制作的程序化模型，尚非最终品质资产。</p>
+<canvas></canvas><div class="labels"><span>关羽 · 青龙偃月刀</span><span>吕布 · 方天画戟</span><span>赵云 · 龙胆亮银枪</span></div><pre id="error"></pre>
+<script type="module">
+import * as THREE from '../vendor/three/three.module.min.js';
+import {createSignatureWeapon} from '../src/assets/heroes/equipment/signature/index.js';
+try{
+ const canvas=document.querySelector('canvas'),renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+ renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;
+ const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(34,1,.1,40);camera.position.set(0,.15,5.5);camera.lookAt(0,.15,0);
+ scene.add(new THREE.HemisphereLight('#b8d7ff','#33241b',2));
+ const studio=new THREE.Scene();studio.background=new THREE.Color('#263348');
+ for(const [x,y,z,w,h,intensity] of [[-3,3,2,3,5,7],[3,1,-2,2,4,4],[0,5,0,4,2,6]]){const card=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({color:new THREE.Color(intensity,intensity*.9,intensity*.8),side:THREE.DoubleSide}));card.position.set(x,y,z);card.lookAt(0,0,0);studio.add(card);}
+ const pmrem=new THREE.PMREMGenerator(renderer),environment=pmrem.fromScene(studio,.04, .1,30);scene.environment=environment.texture;
+ for(const [color,intensity,x,y,z] of [['#ffe4ba',3,-3,4,3],['#a3ccff',2,3,2,1]]){const l=new THREE.DirectionalLight(color,intensity);l.position.set(x,y,z);scene.add(l);}
+ const models=['guanyu','lvbu','zhaoyun'].map((id,i)=>{const pivot=new THREE.Group(),weapon=createSignatureWeapon(id);pivot.position.set((i-1)*1.65,-.12,0);pivot.add(weapon);scene.add(pivot);return pivot;});
+ let paused=false,dragging=false,lastX=0;
+ canvas.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;canvas.setPointerCapture(e.pointerId);});
+ canvas.addEventListener('pointermove',e=>{if(dragging){models.forEach(m=>m.rotation.y+=(e.clientX-lastX)*.012);lastX=e.clientX;}});
+ canvas.addEventListener('pointerup',()=>dragging=false);canvas.addEventListener('pointercancel',()=>dragging=false);
+ addEventListener('keydown',e=>{if(e.code==='Space'){paused=!paused;e.preventDefault();}});
+ function resize(){const width=canvas.clientWidth,height=canvas.clientHeight;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();}addEventListener('resize',resize);resize();
+ const clock=new THREE.Clock();function frame(){const dt=Math.min(clock.getDelta(),.05);if(!paused&&!dragging)models.forEach(m=>m.rotation.y+=dt*.17);renderer.render(scene,camera);requestAnimationFrame(frame);}frame();document.body.dataset.ready='true';
+}catch(error){document.querySelector('#error').textContent=error.stack;document.body.dataset.ready='error';}
+</script></html>

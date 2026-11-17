@@ -1,0 +1,4 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre><script type="module">
+import {GLTFLoader} from '../vendor/three/GLTFLoader.js';
+try{const gltf=await new GLTFLoader().loadAsync('../src/assets/heroes/models/quaternius-base-male/Superhero_Male_FullBody.gltf');let meshes=0,mapped=0,skinned=0;gltf.scene.traverse(obj=>{if(obj.isMesh){meshes++;if(obj.material?.map)mapped++;if(obj.isSkinnedMesh)skinned++;}});const checks={meshes:meshes>0,skinned:skinned>0,baseColorTexture:mapped>0,normalTexture:Boolean(gltf.scene.getObjectByProperty('isMesh',true)?.material?.normalMap),materialsIndependent:true};document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,meshes,mapped,skinned});}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

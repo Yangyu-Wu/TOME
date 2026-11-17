@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre><script type="module">
+import * as THREE from '../vendor/three/three.module.min.js';
+import {GLTFLoader} from '../vendor/three/GLTFLoader.js';
+import {findActionClip,actionInventory} from '../src/assets/heroes/action-library.js';
+const checks={},loader=new GLTFLoader();
+try{
+ const gltf=await loader.loadAsync('../src/assets/heroes/animations/quaternius-ual2/ual2-standard.glb'),inventory=actionInventory(gltf.animations);
+ checks.skinnedSource=gltf.scene.getObjectByProperty('isSkinnedMesh',true)!==undefined;
+ checks.hasFortyPlusActions=gltf.animations.length>=40;
+ checks.idle=inventory.idle?.name==='Idle_No_Loop';
+ checks.walk=inventory.walk?.name==='Walk_Carry_Loop';
+ checks.attack=inventory.attack?.name==='Melee_Hook';
+ checks.recovery=inventory.attackRecovery?.name==='Melee_Hook_Rec';
+ checks.hit=inventory.hit?.name==='Hit_Knockback';
+ checks.reversibleFall=inventory.death?.name==='LayToIdle';
+ checks.dash=inventory.dash?.name==='Shield_Dash';
+ const model=gltf.scene.clone(true),mixer=new THREE.AnimationMixer(model),clip=findActionClip(gltf.animations,'attack');
+ const action=mixer.clipAction(clip);action.play();mixer.update(.12);checks.gpuAnimationMixer=action.isRunning()&&Number.isFinite(action.time);
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,clipCount:gltf.animations.length,inventory});
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,checks,error:error.stack});}
+</script>

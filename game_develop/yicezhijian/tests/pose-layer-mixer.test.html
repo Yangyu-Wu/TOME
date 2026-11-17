@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre><script type="module">
+import * as THREE from '../vendor/three/three.module.min.js';
+import {applyRunGait} from '../src/assets/heroes/run-gait.js';
+import {applyCombatPose} from '../src/assets/heroes/combat-pose.js';
+import {restoreAuthoredPose,captureAuthoredPose} from '../src/assets/heroes/pose-layer.js';
+try{
+ function rig(){const root=new THREE.Group(),bone=new THREE.Bone();bone.name='spine';root.add(bone);const mixer=new THREE.AnimationMixer(root),q=new THREE.Quaternion().setFromEuler(new THREE.Euler(.2,.15,.1));const clip=new THREE.AnimationClip('turn',1,[new THREE.QuaternionKeyframeTrack('spine.quaternion',[0,1],[0,0,0,1,...q.toArray()])]);mixer.clipAction(clip).play();return {root,bone,mixer,runBones:{spine:bone}};}
+ const actor=rig(),reference=rig(),checks={};let worst=0,referenceWorst=0;
+ for(let frame=0;frame<120;frame++){
+  restoreAuthoredPose(actor);actor.mixer.update(1/60);captureAuthoredPose(actor);
+  reference.mixer.update(1/60);const authored=reference.bone.quaternion.clone();
+  applyRunGait(actor,frame*.1,1,'spear');applyCombatPose(actor,.4,'spear','attack',1);
+  // Construct expected pose directly from the independently sampled clip.
+  const expected=new THREE.Bone();expected.quaternion.copy(authored);const fresh={runBones:{spine:expected}};
+  applyRunGait(fresh,frame*.1,1,'spear');applyCombatPose(fresh,.4,'spear','attack',1);
+  worst=Math.max(worst,actor.bone.quaternion.angleTo(expected.quaternion));
+  restoreAuthoredPose(actor);referenceWorst=Math.max(referenceWorst,...actor.bone.quaternion.toArray().map((value,index)=>Math.abs(value-authored.toArray()[index])));
+ }
+ checks.matchesFreshLayerAcrossAnimatedFrames=worst<1e-6;checks.restoresOriginalClip=referenceWorst<1e-6;
+ captureAuthoredPose(actor);applyRunGait(actor,1,1);restoreAuthoredPose(actor);actor.mixer.update(0);
+ checks.stoppingLeavesNoRunOffset=actor.bone.userData.runMotionApplied===undefined;
+ // An untracked bone must also return to its saved pose when an overlay ends.
+ const untracked=new THREE.Bone(),idle={runBones:{spine:untracked}};untracked.rotation.y=.3;const initial=untracked.quaternion.clone();captureAuthoredPose(idle);applyRunGait(idle,1,1);applyCombatPose(idle,.5,'spear','attack');restoreAuthoredPose(idle);
+ checks.untrackedBoneRestored=untracked.quaternion.angleTo(initial)<1e-6;
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,worst,referenceWorst});
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

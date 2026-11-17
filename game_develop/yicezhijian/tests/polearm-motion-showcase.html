@@ -1,0 +1,26 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>一策之间 · 长柄动作近景</title>
+<style>html,body{margin:0;background:#0c1420;color:#e6e0d1;font:15px system-ui}header{padding:16px 24px}h1{font-size:22px;margin:0 0 12px}button,select{background:#1c2b3e;border:1px solid #596572;color:inherit;border-radius:5px;padding:7px 12px}label{margin-left:16px}canvas{display:block;width:960px;height:600px;background:radial-gradient(ellipse at 50% 62%,#334251,#0b1420 67%);max-width:100%}#status{padding:0 24px;color:#9eafbf}#error{color:#f4879c}</style>
+<header><h1>长柄武器 · 双手握持与攻击</h1><select id="hero"><option value="guanyu">关羽 · 横扫</option><option value="lvbu">吕布 · 下劈</option><option value="zhaoyun">赵云 · 突刺</option></select> <button id="play">暂停</button> <button id="attack">攻击</button> <button id="guard">持械待机</button><label>动作进度 <input id="phase" type="range" min="0" max="0.999" step="0.001" value="0"></label><label>视角 <input id="view" type="range" min="-3.14" max="3.14" step="0.01" value="0.55"></label></header>
+<canvas></canvas><p id="status"></p><pre id="error"></pre>
+<script type="module">
+import {GpuHeroLayer} from '../src/web/gpu-hero-layer.js';
+try{
+ const layer=new GpuHeroLayer(document.querySelector('canvas'));await layer.load('../src/assets/heroes/animations/quaternius-ual2/ual2-standard.glb','../src/assets/heroes/models/quaternius-base-male/Superhero_Male_FullBody.gltf');layer.scale*=4.6;
+ let paused=false,attacking=true,phase=0;const $=id=>document.getElementById(id),hero=$('hero'),clock={last:performance.now()};hero.value=new URLSearchParams(location.search).get('hero')||'guanyu';
+ const unit=()=>({id:hero.value,heroId:hero.value,role:'spear',x:480,y:530,facing:1,attackFlash:attacking?.2:0});
+ function camera(){const yaw=Number($('view').value)+Math.PI/2;layer.camera.position.set(480+Math.sin(yaw)*600,220,Math.cos(yaw)*600);layer.camera.lookAt(480,220,0);}camera();$('view').oninput=camera;
+ $('play').onclick=()=>{paused=!paused;$('play').textContent=paused?'播放':'暂停';};$('phase').oninput=()=>{paused=true;attacking=true;phase=Number($('phase').value);$('play').textContent='播放';};
+ $('attack').onclick=()=>{attacking=true;paused=false;phase=0;$('play').textContent='暂停';};$('guard').onclick=()=>{attacking=false;paused=false;};hero.onchange=()=>{phase=0;};
+ function draw(schedule=true){const now=performance.now(),dt=Math.min(.04,(now-clock.last)/1000);clock.last=now;const u=unit(),a=layer.actorFor(u);layer.updateUnit(u,0);
+  if(attacking){if(!paused)phase=(phase+dt/a.polearmRig.profile.duration)%1;for(const action of a.actions.values())if(action!==a.current)action.stop();a.current.enabled=true;a.current.stopFading().setEffectiveWeight(1);a.current.paused=true;a.current.time=phase*a.current.getClip().duration;}
+  else if(a.current)a.current.paused=false;
+  layer.clock.getDelta=()=>attacking?0:dt;
+  if(a.polearmRig.weight<.999)a.polearmRig.weight=1;
+  layer.render([u]);$('phase').value=phase;$('status').textContent=`${a.current?.getClip().name||''} · 副手接触误差 ${((a.polearmRig.contact?.error||0)*1000).toFixed(2)} mm`;
+  if(schedule)requestAnimationFrame(()=>draw());
+ }
+ // Expose a deterministic inspector for screenshots and frame-by-frame QA.
+ window.polearmShowcase={layer,select(id){hero.value=id;phase=0;},sample(t){attacking=true;paused=true;phase=t;draw(false);},view(yaw){$('view').value=yaw;camera();}};
+ draw();document.body.dataset.ready='true';
+}catch(error){document.querySelector('#error').textContent=error.stack;document.body.dataset.ready='error';}
+</script></html>

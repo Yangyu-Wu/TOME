@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre><script type="module">
+import {HEROES,HERO_COUNTS,addHeroToRoster,createHeroUnit} from '../src/heroes/index.js';
+import {BattleSimulation} from '../src/core/battle-simulation.js';
+const state={roster:[],events:[]};
+for(let i=0;i<9;i++)addHeroToRoster(state,'lvbu');
+const lvbu=state.roster.filter(unit=>unit.heroId==='lvbu');
+const battleState={phase:'camp',roster:[createHeroUnit('guanyu','front'),createHeroUnit('zhugeliang','back')],events:[],enemies:[],summons:[]};
+const battle=new BattleSimulation();battle.start(battleState,{difficulty:1,duration:10});for(let i=0;i<600&&battleState.phase==='battle';i++)battle.update(battleState,1/60);
+const battleEnds=battleState.events.filter(event=>event.type==='battle-ended').length;
+const checks={total:HEROES.length,counts:HERO_COUNTS,lvbuCount:lvbu.length,lvbuStar:lvbu[0]?.star,uniqueVisuals:new Set(HEROES.map(hero=>JSON.stringify(hero.visual))).size,uniqueSkills:new Set(HEROES.map(hero=>hero.skill.id)).size,battlePhase:battleState.phase,battleEnds};
+const pass=checks.total===59&&checks.counts[5]===9&&checks.counts[4]===12&&checks.counts[3]===12&&checks.counts[2]===12&&checks.counts[1]===14&&checks.lvbuCount===1&&checks.lvbuStar===3&&checks.uniqueVisuals===59&&checks.uniqueSkills===59&&checks.battlePhase!=='battle'&&checks.battleEnds===1;
+document.querySelector('#result').textContent=JSON.stringify({pass,checks});
+</script>

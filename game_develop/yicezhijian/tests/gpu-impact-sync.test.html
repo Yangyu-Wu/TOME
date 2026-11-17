@@ -1,0 +1,28 @@
+<!doctype html><meta charset="utf-8"><canvas></canvas><pre id="result">running</pre><script type="module">
+import {BattleSimulation} from '../src/core/battle-simulation.js';
+import {GpuHeroLayer} from '../src/web/gpu-hero-layer.js';
+try{
+ const battle=new BattleSimulation(),layer=new GpuHeroLayer(document.querySelector('canvas'));await layer.load('../src/assets/heroes/animations/quaternius-ual2/ual2-standard.glb','../src/assets/heroes/models/quaternius-base-male/Superhero_Male_FullBody.gltf');layer.clock.getDelta=()=>.04;
+ const checks={},results=[];
+ for(const heroId of ['guanyu','lvbu','zhaoyun']){
+  const u={id:heroId,heroId,role:'spear',x:400,y:430,currentHp:1000,range:42,damage:10,speed:58,attackCooldown:0,skillCooldown:99,statuses:[]},target={id:'target',x:435,y:430,currentHp:1000,maxHp:1000,shield:0},state={roster:[u],enemies:[target],summons:[],effects:[],screenShake:0};
+  battle.updateFront(u,[u],[target],state,0);layer.render([u]);const a=layer.actorFor(u),action=u.attackMotion;
+  let worst=0,impactPhase=null;
+  for(let i=0;i<45&&action.active;i++){
+   const before=target.currentHp;battle.updateFront(u,[u],[target],state,.027);layer.render([u]);
+   if(action.active)worst=Math.max(worst,Math.abs(a.attackPhase-action.age/action.duration));
+   if(target.currentHp<before)impactPhase=a.attackPhase;
+  }
+  checks[heroId+'UsesSimulationClock']=worst<1e-6;
+  checks[heroId+'ContactWithinStrikeWindow']=impactPhase>a.polearmRig.profile.trail[0]&&impactPhase<a.polearmRig.profile.trail[1];
+  checks[heroId+'RecoveryReturnsToIdle']=a.lastState==='idle'&&!a.current.paused;
+  // Keep displaying a paused simulation: extra GPU frames must not advance
+  // the action or cause its blade to continue sweeping during cinematics.
+  battle.updateFront(u,[u],[target],state,0);battle.updateFront(u,[u],[target],state,.21);layer.render([u]);const phase=a.attackPhase;
+  for(let i=0;i<10;i++)layer.render([u]);checks[heroId+'RenderCannotAdvanceCombat']=Math.abs(a.attackPhase-phase)<1e-8;
+  const sequence=action.sequence;checks[heroId+'NextAttackHasNewSequence']=u.attackMotion.sequence>sequence&&a.attackSequence===u.attackMotion.sequence;
+  results.push({heroId,worstPhaseError:worst,impactPhase});
+ }
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,results});layer.dispose();
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

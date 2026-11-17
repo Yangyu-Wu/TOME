@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><canvas></canvas><pre id="result">running</pre><script type="module">
+import {GpuHeroLayer} from '../src/web/gpu-hero-layer.js';
+import * as THREE from '../vendor/three/three.module.min.js';
+try{
+ const layer=new GpuHeroLayer(document.querySelector('canvas'));await layer.load('../src/assets/heroes/animations/quaternius-ual2/ual2-standard.glb','../src/assets/heroes/models/quaternius-base-male/Superhero_Male_FullBody.gltf');
+ const clips=['Jog_Fwd_Loop','Sprint_Loop'].map(name=>layer.clips.find(c=>c.name===name)),checks={};
+ checks.twoAuthoredClips=clips.every(c=>c?.tracks.length===195&&c.duration>0&&c.duration<1);
+ checks.allTracksResolve=clips.every(c=>c.tracks.every(t=>layer.source.getObjectByName(t.name.split('.')[0])));
+ checks.loopSeamsMatch=clips.every(c=>c.tracks.every(t=>{const size=t.getValueSize(),last=t.values.length-size;if(t.name.endsWith('quaternion')){const a=new THREE.Quaternion().fromArray(t.values,0).normalize(),b=new THREE.Quaternion().fromArray(t.values,last).normalize();return a.angleTo(b)<.04;}return Array.from(t.values.slice(0,size)).every((v,i)=>Math.abs(v-t.values[last+i])<.005);}));
+ const unit={id:'runner',heroId:'zhaoyun',role:'spear',x:300,y:400,facing:1,moving:true,speed:78};layer.clock.getDelta=()=>1/60;
+ layer.render([unit]);const actor=layer.actors.get(unit.id);actor.wasMoving=true;
+ if(actor.lastState==='dash')actor.current.time=actor.current.getClip().duration;
+ actor.mixer.update(.1);for(let i=0;i<30;i++)layer.render([unit]);
+ checks.jogReplacesFastWalk=actor.lastState==='run'&&actor.current.getClip().name==='Jog_Fwd_Loop';
+ const calf=actor.runBones.calfL,before=calf.quaternion.clone();for(let i=0;i<8;i++)layer.render([unit]);checks.authoredKneeMoves=before.angleTo(calf.quaternion)>.04;
+ checks.noProceduralRunOverlay=actor.runBones.thighL.userData.runMotionApplied===undefined;
+ const jogPhase=(actor.current.time/actor.current.getClip().duration)%1;
+ layer.updateUnit({...unit,speed:110},0);
+ checks.stridePreservedOnSprint=Math.abs(actor.current.time/actor.current.getClip().duration-jogPhase)<1e-6;
+ layer.render([{...unit,speed:110}]);const sprintState={name:actor.current.getClip().name,loop:actor.current.loop,state:actor.lastState};checks.highSpeedUsesSprint=actor.current.getClip().name==='Sprint_Loop'&&actor.current.loop===THREE.LoopRepeat;
+ const previousTime=actor.current.time;layer.render([{...unit,speed:100}]);checks.speedAdjustsWithoutRestart=actor.current.time>previousTime&&Math.abs(actor.current.timeScale-100/105)<1e-6;
+ const sprintPhase=(actor.current.time/actor.current.getClip().duration)%1;layer.updateUnit(unit,0);
+ checks.stridePreservedOnJog=Math.abs(actor.current.time/actor.current.getClip().duration-sprintPhase)<1e-6;
+ layer.render([{...unit,moving:false}]);checks.stopsToIdle=actor.lastState==='idle';
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,sprintState});layer.dispose();
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

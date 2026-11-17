@@ -1,0 +1,51 @@
+<!doctype html><meta charset="utf-8"><canvas></canvas><pre id="result">running</pre>
+<script type="module">
+import {makeVisualScene,stepPresentation} from './visual-fixture.js';
+import {queueSkill} from '../src/core/skill-director.js';
+import {flightPoint} from '../src/assets/effects/flight-path.js';
+import {soldierScale} from '../src/assets/soldiers/model.js';
+import {BattleSimulation} from '../src/core/battle-simulation.js';
+import {updateUnitPhysics} from '../src/core/battle-vfx.js';
+import {CanvasRenderer} from '../src/web/canvas-renderer.js';
+const checks={};
+try{
+ const battle=new BattleSimulation(),ally={x:480,y:300,currentHp:1000},state={effects:[],projectiles:[]};
+ checks.walkFromAllEdges=true;
+ for(let side=0;side<4;side++){
+   const e=battle.createEnemy(side,5,0,side,4,{elite:false,ranged:true});
+   const outside=e.x<0||e.x>960||e.y<0||e.y>600,old={x:e.x,y:e.y},cooldown=e.attackCooldown;
+   battle.updateEnemy(e,[ally],state,1/60);updateUnitPhysics(e,1/60);
+   const gradual=Math.hypot(e.x-old.x,e.y-old.y)>0&&Math.hypot(e.x-old.x,e.y-old.y)<2;
+   for(let i=0;i<500&&e.entering;i++){battle.updateEnemy(e,[ally],state,1/60);updateUnitPhysics(e,1/60);}
+   checks.walkFromAllEdges&&=outside&&gradual&&!e.entering&&e.attackCooldown===cooldown&&state.projectiles.length===0;
+ }
+ checks.increasingSizes=soldierScale({})<soldierScale({elite:true})&&soldierScale({elite:true})<soldierScale({boss:true});
+ const renderer=new CanvasRenderer(document.querySelector('canvas'),{renderScale:1}),ctx=renderer.ctx,labels=[],original=ctx.fillText.bind(ctx);
+ renderer.render(makeVisualScene().state);
+ ctx.fillText=(text,...args)=>{labels.push(text);original(text,...args);};
+ const soldier={...battle.createEnemy(1,5,0,0,4,{elite:false,ranged:false}),x:480,y:300,entering:false};
+ renderer.unit(ctx,soldier,'#d64250',true);checks.noSoldierName=!labels.includes(soldier.name);
+ renderer.unit(ctx,{...soldier,elite:true,name:'测试精英'},'#d64250',true);renderer.unit(ctx,{...soldier,boss:true,name:'测试主将'},'#d64250',true);
+ checks.eliteBossNames=labels.includes('测试精英')&&labels.includes('测试主将');
+ const teamScene=makeVisualScene();renderer.render(teamScene.state);
+ const fills=[],oldFill=ctx.fill.bind(ctx);ctx.fill=()=>{fills.push(ctx.fillStyle);oldFill();};
+ renderer.unit(ctx,teamScene.caster,'#287bd0',false);checks.allyBlue=fills.includes('#287bd0');fills.length=0;
+ renderer.unit(ctx,{...teamScene.caster},'#d64250',true);checks.enemyRed=fills.includes('#b43845');
+ const bossScene=makeVisualScene();bossScene.app.state.phase='camp';bossScene.app.startBattle({difficulty:5,battleType:'boss'});
+ const bstate=bossScene.app.state,hp=bstate.roster[0].currentHp,time=bstate.battleTime;
+ bossScene.app.tick(.5);renderer.render(bstate);checks.bossFullScreen=bstate.bossEntrance?.age===.5&&bstate.battleTime===time&&bstate.roster[0].currentHp===hp;
+ for(let i=0;i<180;i++)bossScene.app.tick(1/60);checks.bossEntranceEnds=!bstate.bossEntrance&&bstate.battleTime<time;
+ for(const hero of ['guanyu','zhouyu']){
+   const scene=makeVisualScene(hero);scene.caster.x=300;scene.caster.y=400;
+   scene.state.enemies=scene.state.enemies.slice(0,3);scene.state.enemies.forEach((e,i)=>{e.x=440+i*180;e.y=i===2?550:400;e.shield=0;});
+   queueSkill(scene.state,scene.caster);stepPresentation(scene.state,1.22);
+   const flight=scene.state.skillFlights[0],end=flightPoint(flight,scene.state,1);
+   checks[hero+'Exits']=end.x>1200||end.x<-240||end.y>840||end.y<-240;
+   stepPresentation(scene.state,1.2);
+   const hits=scene.state.events.filter(e=>e.type==='ultimate-impact');
+   checks[hero+'PathDamage']=scene.state.enemies[0].currentHp<5000&&scene.state.enemies[1].currentHp<5000&&scene.state.enemies[2].currentHp===5000;
+   checks[hero+'OncePerTarget']=hits.length===2&&new Set(hits.map(h=>h.targetId)).size===2&&!scene.caster.pendingCast&&scene.state.skillFlights.length===0;
+ }
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks});
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,checks,error:error.stack});}
+</script>

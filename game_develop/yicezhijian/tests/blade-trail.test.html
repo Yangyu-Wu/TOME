@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre><script type="module">
+import * as THREE from '../vendor/three/three.module.min.js';
+import {createHeroWeapon} from '../src/assets/heroes/equipment/melee-weapons.js';
+import {updateBladeTrail} from '../src/assets/heroes/equipment/weapon-trail.js';
+try{
+ const scene=new THREE.Scene(),root=new THREE.Group();root.position.set(300,200,0);root.scale.setScalar(35);scene.add(root);
+ const weapon=createHeroWeapon('sword');root.add(weapon);
+ const actor={root,weapon,team:'ally',trailPoints:[],weaponTrail:null,current:{time:.1,getClip:()=>({duration:1})}};
+ const checks={};updateBladeTrail(scene,actor,true,1/60);checks.noAnticipationRibbon=actor.weaponTrail===null;
+ actor.current.time=.5;updateBladeTrail(scene,actor,true,1/60);
+ weapon.rotation.z+=.6;updateBladeTrail(scene,actor,true,1/60);
+ const ribbon=actor.weaponTrail,p=ribbon.geometry.attributes.position.array,expectedBase=weapon.userData.trailBase.getWorldPosition(new THREE.Vector3()),expectedTip=weapon.userData.trailTip.getWorldPosition(new THREE.Vector3());
+ checks.usesBladeEndpoints=Math.hypot(p[0]-expectedBase.x,p[1]-expectedBase.y)<1e-4&&Math.hypot(p[3]-expectedTip.x,p[4]-expectedTip.y)<1e-4;
+ checks.reachesBeyondGrip=Math.hypot(p[3]-p[0],p[4]-p[1])>10;
+ checks.sweepsRotation=ribbon.visible&&ribbon.geometry.drawRange.count===6&&actor.trailPoints[0].tip.distanceTo(actor.trailPoints[1].tip)>5;
+ const count=actor.trailPoints.length;updateBladeTrail(scene,actor,true,1/60);checks.noDuplicateStationarySamples=actor.trailPoints.length===count;
+ for(let i=0;i<20;i++){weapon.rotation.z+=.07;updateBladeTrail(scene,actor,true,1/60);}checks.historyBounded=actor.trailPoints.length===8&&ribbon.geometry.drawRange.count===42;
+ const colors=ribbon.geometry.attributes.color.array;checks.tailFades=colors[0]>colors[42]&&colors[42]===0;
+ const bow={root:new THREE.Group(),weapon:createHeroWeapon('archer'),trailPoints:[],weaponTrail:null,current:actor.current};updateBladeTrail(scene,bow,true,1/60);checks.bowDoesNotSlash=bow.weaponTrail===null;
+ for(let i=0;i<60;i++)updateBladeTrail(scene,actor,false,1/60);checks.reclaimsTrailSamples=!ribbon.visible&&actor.trailPoints.length===0;
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks});
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

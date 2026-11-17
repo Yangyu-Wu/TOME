@@ -1,0 +1,48 @@
+<!doctype html><meta charset="utf-8"><canvas width="960" height="600"></canvas><pre id="result">running</pre>
+<script type="module">
+import {CanvasRenderer} from '../src/web/canvas-renderer.js';
+import {lightingAt} from '../src/web/environment-renderer.js';
+import {ULTIMATES} from '../src/heroes/ultimates.js';
+import {motionPose,drawHeroModel,drawHeroPortrait} from '../src/heroes/visual-factory.js';
+import {HEROES} from '../src/heroes/catalog.js';
+import {queueSkill} from '../src/core/skill-director.js';
+import {flightPoint,drawFlightMotionBlur} from '../src/assets/effects/flight-path.js';
+import {impactVfx,updateVfx,updateUnitPhysics,VFX_LIMITS} from '../src/core/battle-vfx.js';
+import {makeVisualScene,stepPresentation} from './visual-fixture.js';
+const checks={},details={},canvas=document.querySelector('canvas'),renderer=new CanvasRenderer(canvas,{renderScale:1}),ctx=canvas.getContext('2d');
+function pixels(x=0,y=0,w=960,h=600){const d=ctx.getImageData(x,y,w,h).data;let sum=2166136261;for(let i=0;i<d.length;i+=7)sum=Math.imul(sum^d[i],16777619);return sum>>>0;}
+try{
+ const outcomes=[];
+ for(const heroId of Object.keys(ULTIMATES)){
+   const {state,caster}=makeVisualScene(heroId),hp=state.enemies.reduce((s,u)=>s+u.currentHp,0);
+   queueSkill(state,caster);stepPresentation(state,.55);renderer.render(state);
+   const intro=state.cinematic?.heroId===heroId,undamaged=state.enemies.reduce((s,u)=>s+u.currentHp,0)===hp;
+   stepPresentation(state,1.02);renderer.render(state);const flight=state.skillFlights.some(f=>f.heroId===heroId),beforeImpact=state.enemies.reduce((s,u)=>s+u.currentHp,0)===hp;
+   stepPresentation(state,1.8);renderer.render(state);
+   const events=state.events.filter(e=>e.castId===1),introEvent=events.find(e=>e.type==='ultimate-cinematic'),launch=events.find(e=>e.type==='ultimate-launch'),hits=events.filter(e=>e.type==='ultimate-impact');
+   outcomes.push({heroId,intro,flight,undamaged,beforeImpact,hits:hits.length,damage:hp-state.enemies.reduce((s,u)=>s+u.currentHp,0),ordered:introEvent?.at<launch?.at&&launch?.at<=hits[0]?.at&&events.indexOf(launch)<events.indexOf(hits[0]),marks:state.battlefield.marks.length});
+ }
+ details.ultimates=outcomes;checks.allSignatureSequences=outcomes.every(o=>o.intro&&o.flight&&o.undamaged&&(['guanyu','zhouyu','luxun'].includes(o.heroId)||o.beforeImpact)&&o.damage>0&&o.ordered&&o.marks>0);checks.sevenSeparateStars=outcomes.find(o=>o.heroId==='zhugeliang').hits===7;
+ const flightFixture={origin:{x:100,y:300},target:{x:800,y:300},exitPoint:{x:1200,y:300},age:.3,duration:1,ultimate:ULTIMATES.guanyu};const fp=flightPoint(flightFixture,{enemies:[]}),flightPixels=ctx.getImageData(0,0,960,600);ctx.clearRect(0,0,960,600);const blurBlank=pixels(350,250,160,100);drawFlightMotionBlur(ctx,flightFixture,{enemies:[]},fp);checks.exitFlightHasTangent=Number.isFinite(fp.angle)&&Math.abs(fp.angle)<.01;checks.exitFlightMotionBlur=blurBlank!==pixels(350,250,160,100);ctx.putImageData(flightPixels,0,0);
+ const {state,caster}=makeVisualScene('lvbu'),target=state.enemies[0],prop=state.battlefield.props.find(p=>p.kind==='crate');
+ target.x=prop.x+16;target.y=prop.y;impactVfx(state,{x:prop.x,y:prop.y,radius:120,theme:'airburst',color:'#ff77b0',force:200,power:160,targets:[target]});
+ const oldX=target.x,impactStrength=target.hitStrength;updateUnitPhysics(target,.1);checks.airburstPhysics=target.x!==oldX&&target.airHeight>0;checks.hitStrengthDecays=impactStrength>target.hitStrength&&target.hitStrength>=0;checks.impactDirectionRecorded=[-1,1].includes(target.hitDirection);
+ const sonicStart=target.x;impactVfx(state,{x:target.x-20,y:target.y,radius:90,theme:'sonic',color:'#c2f5ff',force:170,targets:[target]});updateUnitPhysics(target,.1);checks.sonicPhysics=target.x>sonicStart&&state.shockwaves.some(w=>w.theme==='sonic');
+ checks.sceneryBreaks=prop.destroyed&&state.particles.some(p=>p.kind==='debris');const markCount=state.battlefield.marks.length;for(let i=0;i<600;i++)updateVfx(state,1/60);checks.scarsPersist=state.battlefield.marks.length===markCount&&prop.destroyed;
+ const before={x:target.x,y:target.y};impactVfx(state,{x:target.x+30,y:target.y,radius:100,theme:'tornado',color:'#88ffdd',targets:[]});updateVfx(state,.2);checks.tornadoMovesTargets=target.x!==before.x||target.y!==before.y;
+ impactVfx(state,{x:480,y:350,radius:120,theme:'inferno',color:'#ff7733'});checks.fireFieldAndLight=state.fields.some(f=>f.theme==='inferno')&&state.lights.length>0&&state.particles.some(p=>p.kind==='ember');
+ const dayHashes=[],waterHashes=[];for(const time of [0,22,44,66]){state.environmentTime=time;renderer.render(state);dayHashes.push(pixels());waterHashes.push(pixels(70,340,170,95));}checks.fourLightingStages=new Set(dayHashes).size===4&&new Set([0,22,44,66].map(t=>lightingAt(t).name)).size===4;checks.waterReflectsLighting=new Set(waterHashes).size===4;
+ state.environmentTime=24;renderer.render(state);const waterA=pixels(70,340,170,95);state.environmentTime=24.8;renderer.render(state);checks.waterAnimated=waterA!==pixels(70,340,170,95);
+ state.environmentTime=24;renderer.render(state);const terrainA=pixels(300,130,330,300);renderer.render(state);const terrainB=pixels(300,130,330,300);checks.terrainDetailStable=terrainA===terrainB;
+ checks.terrainHasBevelContrast=pixels(32,114,896,6)!==pixels(32,120,896,6);
+ const moving={...caster,x:100,y:100,moving:true,walkPhase:0},a=motionPose(moving);moving.walkPhase=1.3;const b=motionPose(moving);checks.articulatedWalk=a.leftFoot!==b.leftFoot&&a.arm!==b.arm&&a.cape!==b.cape;
+ ctx.clearRect(0,0,960,600);drawHeroModel(ctx,moving);const heroA=pixels(30,10,150,150);moving.walkPhase=3.8;ctx.clearRect(0,0,960,600);drawHeroModel(ctx,moving);checks.heroWalkVisible=heroA!==pixels(30,10,150,150);
+ const soldier={...target,x:100,y:100,airHeight:0,moving:true,walkPhase:.2};ctx.clearRect(0,0,960,600);renderer.drawSoldier(ctx,soldier,'#a85f4b');const soldierA=pixels(30,10,150,150);soldier.walkPhase=3.2;ctx.clearRect(0,0,960,600);renderer.drawSoldier(ctx,soldier,'#a85f4b');checks.soldierWalkVisible=soldierA!==pixels(30,10,150,150);
+ const saved=JSON.stringify(state);renderer.render(state);checks.renderDoesNotMutateState=saved===JSON.stringify(state);
+ const portrait=document.createElement('canvas');portrait.width=128;portrait.height=128;const portraitCtx=portrait.getContext('2d');for(const hero of HEROES){drawHeroModel(ctx,{...hero,x:480,y:350,currentHp:hero.hp,moving:true,walkPhase:1});drawHeroPortrait(portraitCtx,hero);}checks.all59ModelsAndPortraitsRender=true;
+ for(let i=0;i<80;i++)impactVfx(state,{x:100+i%10*80,y:200+i%5*60,radius:90,theme:i%2?'inferno':'tornado',color:'#ffbb66'});
+ updateVfx(state,1/60);checks.effectsBounded=state.particles.length<=VFX_LIMITS.particles&&state.fields.length<=VFX_LIMITS.fields&&state.shockwaves.length<=VFX_LIMITS.waves&&state.lights.length<=VFX_LIMITS.lights&&state.battlefield.marks.length<=72;
+ const frameTimes=[];for(let i=0;i<45;i++){const t=performance.now();updateVfx(state,1/60);renderer.render(state);ctx.getImageData(0,0,1,1);frameTimes.push(performance.now()-t);}frameTimes.sort((a,b)=>a-b);details.stress={particles:state.particles.length,fields:state.fields.length,medianMs:frameTimes[22],p95Ms:frameTimes[42]};checks.stressRenders=frameTimes.every(Number.isFinite)&&renderer.frameCount>=45;
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,details});
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,checks,error:error.stack});}
+</script>

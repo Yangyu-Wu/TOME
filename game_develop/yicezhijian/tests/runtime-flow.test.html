@@ -1,0 +1,30 @@
+<!doctype html><meta charset="utf-8"><iframe id="game-frame" style="width:980px;height:660px;border:0"></iframe><pre id="result">running</pre>
+<script type="module">
+const checks={},errors=[],frame=document.querySelector('iframe');
+try{
+ const loaded=new Promise(resolve=>frame.onload=resolve);frame.src='../index.html';await loaded;
+ const win=frame.contentWindow,doc=frame.contentDocument;
+ win.addEventListener('error',e=>errors.push(e.message));win.addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));
+ const url=new URL('../src/web/main.js',location.href).href,{app,renderer,audio}=await win.eval(`import(${JSON.stringify(url)})`);
+ checks.booted=!!doc.querySelector('.deployment')&&renderer.frameCount>0;
+ checks.testEnvironment=app.state.testMode&&app.state.roster.length===59&&doc.querySelectorAll('[data-select-unit]').length===59;
+ doc.querySelector('[data-action=test-roster]').click();checks.quickFormation=app.state.roster.length===59&&app.state.roster.filter(unit=>unit.slot!=='bench').length===4;
+ doc.querySelector('[data-battle=boss]').click();checks.started=app.state.phase==='battle'&&doc.querySelector('#deployment-root').classList.contains('hidden');
+ const frameTimes=[];let maxParticles=0,previousHits=0,hiddenImpact=false;
+ for(let i=0;i<540&&app.state.phase==='battle';i++){const started=performance.now();app.tick(1/30);frameTimes.push(performance.now()-started);maxParticles=Math.max(maxParticles,app.state.particles.length);const hits=app.state.events.filter(e=>e.type==='ultimate-impact').length;if(hits>previousHits&&app.state.cinematic)hiddenImpact=true;previousHits=hits;}
+ renderer.render(app.state);checks.highResolutionBattle=renderer.canvas.width===1920&&renderer.canvas.height===1200;
+ const events=app.state.events,impactHeroes=new Set(events.filter(e=>e.type==='ultimate-impact').map(e=>e.heroId));
+ checks.fourNamedUltimatesInRealBattle=['guanyu','zhouyu','zhugeliang','lvbu'].every(id=>impactHeroes.has(id));
+ checks.terrainChanged=app.state.battlefield.marks.length>0;checks.particleActivity=maxParticles>50;
+ const seq=events.filter(e=>e.type==='ultimate-cinematic'||e.type==='ultimate-impact');let latestImpact=-Infinity;checks.impactNotHidden=!hiddenImpact;
+ for(const event of seq){if(event.type==='ultimate-impact'){latestImpact=event.at;}else if(event.at-latestImpact<.5)checks.impactNotHidden=false;}
+ app.state.battleTime=.001;app.tick(1/30);checks.resultVisible=!!doc.querySelector('.battle-result');doc.querySelector('[data-action=continue]').click();
+ checks.returnedAndCleared=app.state.phase==='camp'&&app.state.skillFlights.length===0&&app.state.skillQueue.length===0&&app.state.cinematic===null&&app.state.battlefield===null&&app.state.particles.length===0&&app.state.roster.every(u=>!u.pendingCast&&!u.attackMotion&&!u.attackFlash);
+ const stored=JSON.parse(win.localStorage.getItem('yice-save-v1'));checks.savedCleanly=stored.roster.length===59&&stored.battlefield===null&&stored.skillFlights.length===0&&stored.roster.every(u=>!u.attackMotion);
+ doc.querySelector('#sound-toggle').click();checks.audioToggle=audio.enabled===false&&doc.querySelector('#sound-toggle').getAttribute('aria-pressed')==='false';
+ const offline=new OfflineAudioContext(1,22050,22050);audio.context=offline;audio.tone(100,28,.5,.06);audio.noise(.2,.025);const buffer=await offline.startRendering();checks.boomHasAudio=buffer.getChannelData(0).some(sample=>Math.abs(sample)>.005);
+ doc.querySelector('[data-battle=normal]').click();checks.freshBattle=app.state.battlefield.marks.length===0&&app.state.skillQueue.length===0&&app.state.ultimateSeen&&Object.keys(app.state.ultimateSeen).length===0;
+ checks.noRuntimeErrors=errors.length===0;frameTimes.sort((a,b)=>a-b);
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,errors,details:{impactHeroes:[...impactHeroes],frames:frameTimes.length,maxParticles}});
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,checks,error:error.stack});}
+</script>

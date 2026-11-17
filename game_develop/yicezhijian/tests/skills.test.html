@@ -1,0 +1,5 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre><script type="module">
+import {HEROES,createHeroUnit,executeHeroSkill,tickStatuses} from '../src/heroes/index.js';
+const results=[];for(const type of ['single','area','heal','shield','burn','stun','haste','drain','chain','summon']){const template=HEROES.find(hero=>hero.skill.type===type),caster=createHeroUnit(template.id,'front'),ally=createHeroUnit('guanyu','front'),enemy={id:'enemy',name:'敌军',x:10,y:0,maxHp:1000,currentHp:1000,shield:0,statuses:[],dead:false};caster.x=0;caster.y=0;ally.x=5;ally.y=0;ally.currentHp=Math.floor(ally.maxHp/2);caster.currentHp=Math.floor(caster.maxHp/2);const summons=[];let ok=false,error=null;try{ok=executeHeroSkill(caster,{allies:[caster,ally],enemies:[enemy],summons});tickStatuses(enemy,.5);}catch(value){error=String(value);}results.push({type,hero:template.name,ok,error,summons:summons.length});}
+document.querySelector('#result').textContent=JSON.stringify({pass:results.every(item=>item.ok&&!item.error),results});
+</script>

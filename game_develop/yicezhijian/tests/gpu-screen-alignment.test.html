@@ -1,0 +1,38 @@
+<!doctype html><meta charset="utf-8"><canvas id="gpu"></canvas><pre id="result">running</pre>
+<script type="module">
+import {GpuHeroLayer} from '../src/web/gpu-hero-layer.js';
+import * as THREE from '../vendor/three/three.module.min.js';
+try{
+ const layer=new GpuHeroLayer(document.querySelector('canvas'));
+ await layer.load('../src/assets/heroes/animations/quaternius-ual2/ual2-standard.glb','../src/assets/heroes/models/quaternius-base-male/Superhero_Male_FullBody.gltf');
+ const checks={},units=[{id:'left',heroId:'guanyu',role:'spear',x:200,y:400,facing:1},{id:'right',heroId:'lvbu',role:'sword',x:730,y:350,facing:-1,enemy:true,boss:true}];
+ layer.clock.getDelta=()=>1/60;
+ for(let i=0;i<20;i++)layer.render(units);
+ const project=(x,y)=>new THREE.Vector3(x,600-y,0).project(layer.camera);
+ checks.centerMapsToCenter=project(480,300).length()<1.01&&Math.abs(project(480,300).x)<1e-6&&Math.abs(project(480,300).y)<1e-6;
+ checks.leftTopMapsToLeftTop=Math.abs(project(0,0).x+1)<1e-6&&Math.abs(project(0,0).y-1)<1e-6;
+ checks.rightBottomMapsToRightBottom=Math.abs(project(960,600).x-1)<1e-6&&Math.abs(project(960,600).y+1)<1e-6;
+ // Read opaque body pixels above the foot anchor. This excludes the soft
+ // contact shadow/aura and catches visible meshes projected off the screen.
+ const gl=layer.renderer.getContext(),ratio=layer.renderer.getPixelRatio(),counts=[];
+ for(const unit of units){
+  const x=Math.floor((unit.x-65)*ratio),y=Math.floor((600-unit.y+8)*ratio),w=Math.floor(130*ratio),h=Math.floor((unit.boss?145:90)*ratio),pixels=new Uint8Array(w*h*4);
+  gl.readPixels(x,y,w,h,gl.RGBA,gl.UNSIGNED_BYTE,pixels);let count=0;
+  for(let i=0;i<pixels.length;i+=4)if(pixels[i+3]>240&&Math.max(pixels[i],pixels[i+1],pixels[i+2])>35)count++;
+  counts.push(count);
+ }
+ checks.allyBodyVisibleAtAnchor=counts[0]>100;checks.bossBodyVisibleAtAnchor=counts[1]>500;
+ // An opaque marker crossing the HUD boundary must be clipped identically
+ // at both rendering scales. Changing the boundary also verifies old pixels
+ // are cleared outside the next frame's scissor rectangle.
+ const marker=new THREE.Mesh(new THREE.PlaneGeometry(40,220),new THREE.MeshBasicMaterial({color:'#ffffff',depthTest:false}));marker.position.set(480,480,20);layer.scene.add(marker);
+ for(const ratio of [1,2]){
+  layer.renderer.setPixelRatio(ratio);layer.render([]);
+  const sample=y=>{const pixel=new Uint8Array(4);gl.readPixels(480*ratio,(600-y)*ratio,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);return pixel[3];};
+  checks['hudClippedAtDpr'+ratio]=sample(60)===0&&sample(150)===255;
+ }
+ layer.scene.remove(marker);layer.render([]);const pixel=new Uint8Array(4);gl.readPixels(960,900,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);checks.removedMarkerCleared=pixel[3]===0;
+ marker.geometry.dispose();marker.material.dispose();
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,opaqueBodyPixels:counts});layer.dispose();
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

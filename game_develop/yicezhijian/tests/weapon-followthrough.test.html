@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre>
+<script type="module">
+import {createHeroWeapon,animateHeroWeapon} from '../src/assets/heroes/equipment/melee-weapons.js';
+const results={};
+for(const role of ['sword','spear','cavalry','mage','assassin']){
+ const weapon=createHeroWeapon(role),actor={weapon,current:{time:0,getClip:()=>({duration:1})}};
+ animateHeroWeapon(actor,{attack:true,dt:1/60});const anticipation=weapon.rotation.z;
+ actor.current.time=.55;animateHeroWeapon(actor,{attack:true,dt:1/60});const strike=weapon.rotation.z;
+ actor.current.time=.82;animateHeroWeapon(actor,{attack:true,dt:1/60});const follow=weapon.rotation.z;
+ actor.current.time=1;for(let i=0;i<20;i++)animateHeroWeapon(actor,{attack:false,dt:1/60});const recovery=weapon.rotation.z;
+ const frameRateStableA=createHeroWeapon(role),frameRateStableB=createHeroWeapon(role),a={weapon:frameRateStableA,current:{time:.55,getClip:()=>({duration:1})}},b={weapon:frameRateStableB,current:{time:.55,getClip:()=>({duration:1})}};
+ for(let i=0;i<6;i++)animateHeroWeapon(a,{attack:true,dt:1/60});for(let i=0;i<3;i++)animateHeroWeapon(b,{attack:true,dt:1/30});
+ results[role]={anticipation,strike,follow,recovery,stable:Math.abs(frameRateStableA.rotation.z-frameRateStableB.rotation.z)<.003};
+}
+const checks={distinctAttackArc:Object.values(results).every(v=>Math.abs(v.strike-v.anticipation)>.005&&Math.abs(v.follow-v.strike)>.001),returnsToRest:Object.values(results).every(v=>Math.abs(v.recovery+.12)<.04),frameRateStable:Object.values(results).every(v=>v.stable)};
+document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,results});
+</script>

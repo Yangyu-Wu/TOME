@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre>
+<script type="module">
+import * as THREE from '../vendor/three/three.module.min.js';
+import {createHeroWeapon,animateHeroWeapon} from '../src/assets/heroes/equipment/melee-weapons.js';
+const bow=createHeroWeapon('archer'),actor={weapon:bow,current:{time:0,getClip:()=>({duration:1})}};
+const arrow=bow.userData.bowArrow,string=bow.userData.bowString,rest=bow.userData.arrowRest.x;
+animateHeroWeapon(actor,{attack:true});const restArrow=arrow.position.x,restString=string.position.x;
+actor.current.time=.24;animateHeroWeapon(actor,{attack:true});const drawArrow=arrow.position.x,drawString=string.position.x;
+actor.current.time=.6;animateHeroWeapon(actor,{attack:true});const releasedArrow=arrow.position.x,releasedVisible=arrow.visible;
+actor.current.time=1;animateHeroWeapon(actor,{attack:false});const resetArrow=arrow.position.x,resetString=string.position.x;
+const checks={bowParts:Boolean(arrow&&string),drawsString:drawString<restString,drawsArrowBack:drawArrow<restArrow,releasesArrowForward:releasedArrow>drawArrow,arrowVisibleDuringShot:releasedVisible,resetsArrow:Math.abs(resetArrow-rest)<1e-6,resetsString:Math.abs(resetString)<1e-6};
+const shotActor={weapon:createHeroWeapon('archer'),current:{time:.4,getClip:()=>({duration:1})}};animateHeroWeapon(shotActor,{attack:true});shotActor.current.time=.51;animateHeroWeapon(shotActor,{attack:true});const shotOnce=shotActor.weapon.userData.bowShotSequence===1;animateHeroWeapon(shotActor,{attack:true});const noDuplicate=shotActor.weapon.userData.bowShotSequence===1;animateHeroWeapon(shotActor,{attack:false});shotActor.current.time=.6;animateHeroWeapon(shotActor,{attack:true});const nextShot=shotActor.weapon.userData.bowShotSequence===2;Object.assign(checks,{releaseEdgeCreatesShot:shotOnce,noDuplicateDuringRelease:noDuplicate,nextAttackCanShootAgain:nextShot});
+document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,positions:{restArrow,drawArrow,releasedArrow,resetArrow}});
+</script>

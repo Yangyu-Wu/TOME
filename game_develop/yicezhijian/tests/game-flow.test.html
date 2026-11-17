@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre><script type="module">
+import {GameApp} from '../src/core/game-app.js';
+import {MemoryStorage} from '../src/platform/storage.js';
+import {addHero} from '../src/core/game-state.js';
+const app=new GameApp({storage:new MemoryStorage(),seed:42});app.newGame();
+const initialOffers=app.state.shop.filter(Boolean).length;
+const emptyBattleBlocked=app.startBattle()===false&&app.state.phase==='camp';
+addHero(app.state,'guanyu');addHero(app.state,'zhugeliang');
+app.deploy(0,'front');app.deploy(1,'back');
+const battleStarted=app.startBattle({difficulty:1,duration:12})&&app.state.phase==='battle';
+for(let i=0;i<1200&&app.state.phase==='battle';i++)app.tick(1/60);
+const battleEnded=['reward','defeat'].includes(app.state.phase);
+const resultPhase=app.state.phase,goldBefore=app.state.gold;
+const continued=app.continueAfterBattle();
+const returnedToCamp=continued&&app.state.phase==='camp'&&app.state.shop.filter(Boolean).length===5&&app.state.roster.every(unit=>unit.currentHp===unit.maxHp&&!unit.dead);
+const rewardApplied=app.state.gold>goldBefore;
+const savedRoster=app.state.roster.map(unit=>unit.instanceId);const copy=new GameApp({storage:app.storage,seed:9});copy.load();
+const saveRestored=copy.state.roster.length===2&&copy.state.roster.every((unit,index)=>unit.instanceId===savedRoster[index]&&unit.heroId);
+const checks={initialOffers,emptyBattleBlocked,battleStarted,battleEnded,resultPhase,returnedToCamp,rewardApplied,saveRestored,wave:app.state.wave,gold:app.state.gold};
+document.querySelector('#result').textContent=JSON.stringify({pass:initialOffers===5&&emptyBattleBlocked&&battleStarted&&battleEnded&&returnedToCamp&&rewardApplied&&saveRestored,checks});
+</script>

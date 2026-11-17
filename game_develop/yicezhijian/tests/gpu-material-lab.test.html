@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><title>GPU 地面材质实验室</title>
+<style>html,body{margin:0;background:#101823;color:#e7dfcc;font:14px system-ui}main{padding:18px}canvas{display:block;width:min(960px,calc(100vw - 36px));height:auto;aspect-ratio:16/10;border:1px solid #95845b}p{max-width:960px;color:#b8c2cb}</style>
+<main><h1>GPU 石材 PBR 材质实验室</h1><p>隔离预览 2K 漫反射与法线贴图、重复采样和动态切线空间光照。此视图验证材质本身，不把平面错误叠加到 2D 战斗单位之上。</p><canvas id="material" width="960" height="600"></canvas><pre id="result">running</pre></main>
+<script type="module">
+import {GpuMaterialRenderer} from '../src/web/gpu-material-renderer.js';
+const canvas=document.querySelector('#material'),renderer=new GpuMaterialRenderer(canvas);
+try{
+ const loaded=await renderer.loadPromise,gl=renderer.renderer?.getContext(),pixel=new Uint8Array(4),legacy=new Uint8Array(4);renderer.render(3.7,{phase:'battle'});gl?.readPixels(480,300,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);renderer.setLighting('legacy');renderer.render(3.7,{phase:'battle'});gl?.readPixels(480,300,1,1,gl.RGBA,gl.UNSIGNED_BYTE,legacy);
+ const delta=pixel.slice(0,3).reduce((sum,value,index)=>sum+Math.abs(value-legacy[index]),0);const report={pass:loaded&&renderer.mode==='webgl2'&&renderer.textures?.length===2&&pixel[3]>0&&delta>0,checks:{cinematicSampleDiffersFromLegacy:delta>0,normalAndColorMapsLoaded:renderer.textures?.length===2},mode:renderer.mode,renderer:renderer.capabilities.renderer,textures:renderer.textures?.map(texture=>texture.image?.src?.split('/').pop()),sample:[...pixel],legacy:[...legacy],delta,dimensions:renderer.textures?.map(texture=>[texture.image?.width,texture.image?.height])};
+ document.querySelector('#result').textContent=JSON.stringify(report);document.body.dataset.ready='true';
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});document.body.dataset.ready='error';}
+</script>

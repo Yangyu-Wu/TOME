@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre><script type="module">
+import * as THREE from '../vendor/three/three.module.min.js';
+import {attachCapeWind} from '../src/assets/heroes/equipment/cape-wind.js';
+try{
+ const renderer=new THREE.WebGLRenderer(),scene=new THREE.Scene(),camera=new THREE.OrthographicCamera(-.5,.5,.1,-.9,.1,10);camera.position.z=3;
+ const geometry=new THREE.PlaneGeometry(.7,.8,12,32);geometry.translate(0,-.4,0);
+ const material=new THREE.MeshStandardMaterial({color:'#607a9c',roughness:.8,side:THREE.DoubleSide}),panel=new THREE.Mesh(geometry,material);attachCapeWind(panel,0);scene.add(panel,new THREE.AmbientLight(0xffffff,.15));const light=new THREE.DirectionalLight(0xffffff,3);light.position.set(2,1,2);scene.add(light);
+ const target=new THREE.WebGLRenderTarget(128,128),uniforms=panel.userData.windUniforms;
+ uniforms.uCapeWind.value=.3;
+ const sample=(time,mat)=>{panel.material=mat;uniforms.uCapeTime.value=time;renderer.setRenderTarget(target);renderer.render(scene,camera);const data=new Uint8Array(128*128*4);renderer.readRenderTargetPixels(target,0,0,128,128,data);return data;};
+ const difference=(a,b)=>{let count=0;for(let i=0;i<a.length;i+=4)if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>6)count++;return count;};
+ const normalDelta=difference(sample(0,material),sample(.6,material));
+ const depthDelta=difference(sample(0,panel.customDepthMaterial),sample(.6,panel.customDepthMaterial));
+ const surfaceShader=material.userData.capeShader,depthShader=panel.customDepthMaterial.userData.capeShader;
+ const checks={lightingChangesWithFolds:normalDelta>100,depthChangesWithSameFolds:depthDelta>100,surfaceUsesDeformedNormal:surfaceShader.vertexShader.includes('objectNormal = capeNormal(position)'),sharedTimeUniform:surfaceShader.uniforms.uCapeTime===depthShader.uniforms.uCapeTime,programsCompile:renderer.info.programs.every(p=>p.diagnostics?.runnable!==false)};
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,normalDelta,depthDelta});geometry.dispose();material.dispose();panel.customDepthMaterial.dispose();target.dispose();renderer.dispose();
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

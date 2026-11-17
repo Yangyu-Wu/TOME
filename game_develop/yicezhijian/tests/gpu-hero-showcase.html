@@ -1,0 +1,25 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>一策之间 · GPU角色验收</title>
+<style>html,body{margin:0;background:#07101b;color:#e6e0cc;font:14px system-ui}.stage{position:relative;width:960px;height:600px}canvas{position:absolute;inset:0;width:960px;height:600px}#gpu{pointer-events:none}#error{color:#ff8989}</style>
+<div class="stage"><canvas id="game"></canvas><canvas id="gpu"></canvas></div><pre id="error"></pre>
+<script type="module">
+import {CanvasRenderer} from '../src/web/canvas-renderer.js';
+import {GpuHeroLayer} from '../src/web/gpu-hero-layer.js';
+import {makeVisualScene} from './visual-fixture.js';
+import {createHeroUnit} from '../src/heroes/index.js';
+try{
+ const scene=makeVisualScene(),renderer=new CanvasRenderer(document.querySelector('#game'));
+ const layer=new GpuHeroLayer(document.querySelector('#gpu'));renderer.gpuHeroesEnabled=true;
+ await layer.load('../src/assets/heroes/animations/quaternius-ual2/ual2-standard.glb','../src/assets/heroes/models/quaternius-base-male/Superhero_Male_FullBody.gltf');
+ const moving=new URLSearchParams(location.search).get('motion')==='run';
+ const units=['guanyu','zhouyu','zhugeliang','lvbu'].map((id,i)=>({...createHeroUnit(id,'front',3),id:'showcase-'+id,x:160+i*210,y:450,enemy:i>=2,elite:i===2,boss:i===3,moving,walkPhase:1.3+i*.6,speed:78,facing:i>=2?-1:1}));
+ scene.state.roster=units.filter(u=>!u.enemy);scene.state.enemies=units.filter(u=>u.enemy);
+ // Deterministic warm-up samples the authored clips after their fade-in and
+ // compiles the same materials used in the game, including cape wind shaders.
+ layer.clock.getDelta=()=>1/60;
+ for(let i=0;i<45;i++)layer.render(units);
+ renderer.render(scene.state);layer.render(units);
+ const loop=()=>{layer.render(units);requestAnimationFrame(loop);};requestAnimationFrame(loop);
+ window.gpuShowcase={layer,units,renderer,scene};
+ document.body.dataset.ready='true';
+}catch(error){document.querySelector('#error').textContent=error.stack;document.body.dataset.ready='error';}
+</script></html>

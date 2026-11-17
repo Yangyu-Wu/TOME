@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><canvas></canvas><pre id="result">running</pre><script type="module">
+import * as THREE from '../vendor/three/three.module.min.js';
+import {GpuHeroLayer} from '../src/web/gpu-hero-layer.js';
+try{
+ const layer=new GpuHeroLayer(document.querySelector('canvas'));await layer.load('../src/assets/heroes/animations/quaternius-ual2/ual2-standard.glb','../src/assets/heroes/models/quaternius-base-male/Superhero_Male_FullBody.gltf');
+ const unit={id:'cloth',heroId:'guanyu',role:'spear',x:400,y:430,facing:1,attackFlash:.2};layer.clock.getDelta=()=>1/60;for(let i=0;i<20;i++)layer.render([unit]);
+ const actor=layer.actorFor(unit),cloth=actor.underlayers[0],source=actor.root.getObjectsByProperty('isSkinnedMesh',true).find(m=>m.material?.name==='MI_Superhero_Male'),checks={};
+ checks.sharesAnimatedSkeleton=cloth.skeleton===source.skeleton&&cloth.bindMatrix.equals(source.bindMatrix);
+ checks.coversBodyNotFace=cloth.geometry.index.count>300&&cloth.geometry.index.count<source.geometry.index.count;
+ const skin=cloth.geometry.attributes.skinIndex,weights=cloth.geometry.attributes.skinWeight;let headWeight=0;
+ for(const v of cloth.geometry.index.array)for(let c=0;c<4;c++)if(/Head|neck/.test(cloth.skeleton.bones[skin.getComponent(v,c)].name))headWeight=Math.max(headWeight,weights.getComponent(v,c));
+ checks.faceUncovered=headWeight<.53;
+ checks.clothMaterial=cloth.material.roughness>.85&&cloth.material.metalness===0&&cloth.material.userData.authoredHeroPalette;
+ actor.root.updateMatrixWorld(true);cloth.skeleton.update();let worst=0;
+ for(let i=0;i<cloth.geometry.index.count;i+=30){const v=cloth.geometry.index.getX(i),p=cloth.getVertexPosition(v,new THREE.Vector3()),q=source.getVertexPosition(v,new THREE.Vector3());worst=Math.max(worst,p.distanceTo(q));}
+ checks.surfaceTracksBody=worst>.001&&worst<.012;
+ const vertex=cloth.geometry.index.getX(Math.floor(cloth.geometry.index.count*.7)),before=cloth.getVertexPosition(vertex,new THREE.Vector3());for(let i=0;i<20;i++)layer.render([unit]);actor.root.updateMatrixWorld(true);cloth.skeleton.update();checks.movesWithAttack=cloth.getVertexPosition(vertex,new THREE.Vector3()).distanceTo(before)>.001;
+ checks.rendered=layer.renderer.info.render.triangles>1000;
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,triangles:cloth.userData.coverageTriangles,maxOffset:worst,headWeight});layer.dispose();
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

@@ -1,0 +1,35 @@
+<!doctype html><meta charset="utf-8"><canvas></canvas><pre id="result">running</pre><script type="module">
+import * as THREE from '../vendor/three/three.module.min.js';
+import {GpuHeroLayer} from '../src/web/gpu-hero-layer.js';
+import {restoreAuthoredPose} from '../src/assets/heroes/pose-layer.js';
+import {applyPolearmGrip} from '../src/assets/heroes/equipment/polearm-grip.js';
+try{
+ const layer=new GpuHeroLayer(document.querySelector('canvas'));await layer.load('../src/assets/heroes/animations/quaternius-ual2/ual2-standard.glb','../src/assets/heroes/models/quaternius-base-male/Superhero_Male_FullBody.gltf');layer.clock.getDelta=()=>1/60;
+ const units=['guanyu','lvbu','zhaoyun'].map((heroId,i)=>({id:heroId,heroId,role:'spear',x:220+i*250,y:440,facing:i===1?-1:1,enemy:i===1,boss:i===1,attackFlash:.2}));
+ for(let i=0;i<50;i++)layer.render(units);
+ const actors=units.map(u=>layer.actorFor(u)),checks={};
+ checks.distinctAuthoredActions=new Set(actors.map(a=>a.current.getClip().name)).size===3&&actors.every(a=>a.current.getClip().duration<1.2);
+ const distances=[],projections=[],boneOffsets=[];
+ const paths=actors.map(()=>[]);let worstProjection={value:0};
+ for(let step=0;step<=50;step++){
+  const phase=step/50*.999;
+  for(const a of actors){a.current.paused=true;a.current.time=a.current.getClip().duration*phase;}
+  layer.render(units);
+  actors.forEach((a,i)=>{distances.push(a.polearmRig.contact.error);projections.push(a.polearmRig.contact.projection);if(a.polearmRig.contact.projection>worstProjection.value)worstProjection={hero:a.id,phase,value:a.polearmRig.contact.projection};paths[i].push(a.root.worldToLocal(a.weapon.userData.trailTip.getWorldPosition(new THREE.Vector3())).toArray());
+   restoreAuthoredPose(a);a.mixer.update(0);const before=Object.values(a.polearmRig.bones).map(b=>b.position.clone());applyPolearmGrip(a,0);Object.values(a.polearmRig.bones).forEach((b,j)=>boneOffsets.push(b.position.distanceTo(before[j])));
+  });
+ }
+ checks.bothPalmsRemainOnShaft=distances.every(d=>d<.002);
+ checks.reachCorrectionBounded=projections.every(d=>d<.16);
+ // Compare before and after IK at the same animation sample, so authored
+ // translation tracks cannot be mistaken for solver-induced stretching.
+ const maxBoneOffset=Math.max(...boneOffsets);checks.noSkeletonStretching=maxBoneOffset===0;
+ checks.distinctBladePaths=paths[0].some((p,i)=>new THREE.Vector3(...p).distanceTo(new THREE.Vector3(...paths[1][i]))>.3)&&paths[1].some((p,i)=>new THREE.Vector3(...p).distanceTo(new THREE.Vector3(...paths[2][i]))>.3);
+ checks.facesBattleTarget=actors.every((a,i)=>Math.abs(new THREE.Vector3(0,0,1).applyQuaternion(a.root.quaternion).x-(units[i].facing<0?-1:1))<.02);
+ checks.finitePose=actors.every(a=>Object.values(a.polearmRig.bones).every(b=>b.quaternion.toArray().every(Number.isFinite)));
+ const a=actors[0],hand=a.polearmRig.bones.hand_l,authored=a.authoredPose.get(hand).clone();restoreAuthoredPose(a);checks.handPoseRestored=hand.quaternion.angleTo(authored)<1e-6;
+ layer.render(units.map(u=>({...u,attackFlash:0,hitFlash:.12})));checks.hitReleasesConstraint=actors.every(a=>a.polearmRig.weight===0&&a.polearmRig.contact===null);
+ layer.render(units.map(u=>({...u,dead:true,deathAge:.1})));checks.deathReleasesConstraint=actors.every(a=>a.lastState==='death'&&a.polearmRig.weight===0);
+ document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks,maxContactError:Math.max(...distances),maxReachCorrection:Math.max(...projections),maxBoneOffset,worstProjection});layer.dispose();
+}catch(error){document.querySelector('#result').textContent=JSON.stringify({pass:false,error:error.stack});}
+</script>

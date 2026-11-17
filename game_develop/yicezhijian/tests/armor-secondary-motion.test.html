@@ -1,0 +1,7 @@
+<!doctype html><meta charset="utf-8"><pre id="result">running</pre>
+<script type="module">
+import * as THREE from '../vendor/three/three.module.min.js';
+import {attachHeroArmor,animateHeroArmor} from '../src/assets/heroes/equipment/armor.js';
+const root=new THREE.Group();for(const name of ['spine_03','upperarm_l','upperarm_r','lowerarm_l','lowerarm_r','pelvis']){const bone=new THREE.Group();bone.name=name;root.add(bone);}
+const actor={root};attachHeroArmor(actor,'spear','ally','guanyu');const before=actor.shoulderGuards.map(g=>g.rotation.z);animateHeroArmor(actor,{time:1,moving:true,attack:true,hit:false,dash:false});const after=actor.shoulderGuards.map(g=>g.rotation.z);const checks={guardsAttached:actor.shoulderGuards.length===2,bracersAttached:actor.bracers.length===2,shoulderSecondaryMotion:after.some((v,i)=>v!==before[i]),finite:after.every(Number.isFinite)};document.querySelector('#result').textContent=JSON.stringify({pass:Object.values(checks).every(Boolean),checks});
+</script>
